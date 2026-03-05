@@ -6,13 +6,18 @@ namespace VMCReplaceAvatar
     {
         public GameObject TargetScaleReferenceObject;
         public GameObject TargetConstraintObject;
-        public bool IsSync = false;
+        private bool IsSync = false;
+        public Config config;
         public bool IsLocal = true;
-        public Vector3 OffsetPosition = Vector3.zero;
         private Vector3 _currentPosition = Vector3.zero;
 
         private void Update()
         {
+            if(config != null && config.avatarSelfScaling)
+                IsSync = true;
+            else
+                IsSync = false;
+
             if (IsSync && TargetScaleReferenceObject != null)
             {
                 if (IsLocal)
@@ -39,6 +44,7 @@ namespace VMCReplaceAvatar
                 transform.localPosition = _currentPosition;
             else
                 transform.position = _currentPosition;
+        
             transform.localRotation = TargetConstraintObject.transform.localRotation;
         }
     }

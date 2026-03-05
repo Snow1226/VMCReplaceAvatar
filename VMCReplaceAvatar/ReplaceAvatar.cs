@@ -1,12 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Animations;
 using VMC;
@@ -24,7 +19,7 @@ namespace VMCReplaceAvatar
     PluginURL: "https://github.com/Snow1226")]
     public class ReplaceAvatar : MonoBehaviour
     {
-        private Setting _setting;
+        private Config _config;
         private VRMAvatarMeshSetting _currentAvatarMeshSetting;
         private GameObject _currentVRMModel = null;
         private GameObject _loadedAvatarModel = null;
@@ -35,26 +30,25 @@ namespace VMCReplaceAvatar
 
         private Vector2 _scrollPosition = Vector2.zero;
 
-        private PositionConstraintScaleSync _positionConstraintScaleSync = null;
         private ScaleSync _rootSync = null;
         private PositionConstraintScaleSync _avatarRootConstraintScaleSync = null;
 
         private SelfScaling _selfScaling;
+        private GameObject _floorObject;
+        private bool _floorDispay = false;
 
         private void Awake()
         {
             LoadSetting();
             VMCEvents.OnModelLoaded += OnModelLoaded;
-            VMCEvents.OnCameraChanged += OnCameraChanged;
 
             _selfScaling = new GameObject("AvatarSelfScaling").AddComponent<SelfScaling>();
-            _selfScaling.Setting = _setting;
+            _selfScaling.config = _config;
         }
 
         private void OnDestroy()
         {
             VMCEvents.OnModelLoaded -= OnModelLoaded;
-            VMCEvents.OnCameraChanged -= OnCameraChanged;
 
             SaveSetting();
         }
@@ -62,29 +56,29 @@ namespace VMCReplaceAvatar
         private void LoadSetting()
         {
             string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
-            if (File.Exists(Path.Combine(dllDirectory, "VMCAvatarChange.json")))
-                _setting = JsonConvert.DeserializeObject<Setting>(File.ReadAllText(Path.Combine(dllDirectory, "VMCAvatarChange.json")));
+            if (File.Exists(Path.Combine(dllDirectory, "VMCReplaceAvatar.json")))
+                _config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(Path.Combine(dllDirectory, "VMCReplaceAvatar.json")));
             else
             {
-                _setting = new Setting();
-                File.WriteAllText(Path.Combine(dllDirectory, "VMCAvatarChange.json"), JsonConvert.SerializeObject(_setting, Formatting.Indented));
+                _config = new Config();
+                File.WriteAllText(Path.Combine(dllDirectory, "VMCReplaceAvatar.json"), JsonConvert.SerializeObject(_config, Formatting.Indented));
             }
         }
 
         private void SaveSetting()
         {
-            var avatarMeshSetting = _setting.vrmAvatarMeshSettings.FindIndex(x => x.avatarName == _currentModelName);
+            var avatarMeshSetting = _config.vrmAvatarMeshSettings.FindIndex(x => x.avatarName == _currentModelName);
             if (avatarMeshSetting >= 0)
             {
-                _setting.vrmAvatarMeshSettings[avatarMeshSetting] = _currentAvatarMeshSetting;
+                _config.vrmAvatarMeshSettings[avatarMeshSetting] = _currentAvatarMeshSetting;
             }
             else
             {
-                _setting.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
+                _config.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
             }
 
             string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
-            File.WriteAllText(Path.Combine(dllDirectory, "VMCAvatarChange.json"), JsonConvert.SerializeObject(_setting, Formatting.Indented));
+            File.WriteAllText(Path.Combine(dllDirectory, "VMCReplaceAvatar.json"), JsonConvert.SerializeObject(_config, Formatting.Indented));
 
             //BlendShape Sync
             SetBlendshapeSync();
@@ -121,7 +115,7 @@ namespace VMCReplaceAvatar
 
             Debug.Log("Model Loaded: " + _currentModelName);
 
-            var avatarMeshSetting = _setting.vrmAvatarMeshSettings.Find(x => x.avatarName == _currentModelName);
+            var avatarMeshSetting = _config.vrmAvatarMeshSettings.Find(x => x.avatarName == _currentModelName);
 
             if (avatarMeshSetting != null)
             {
@@ -140,24 +134,18 @@ namespace VMCReplaceAvatar
                     };
                     _currentAvatarMeshSetting.meshSettings.Add(meshSetting);
                 }
-                _setting.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
+                _config.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
                 SaveSetting();
             }
         }
 
-        private void OnCameraChanged(Camera currentCamera)
-        {
-
-        }
 
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.S))
             {
-                _setting.avatarSelfScaling = !_setting.avatarSelfScaling;
-                if (_rootSync) _rootSync.IsSync = _setting.avatarSelfScaling;
-                if (_positionConstraintScaleSync) _positionConstraintScaleSync.IsSync = _setting.avatarSelfScaling;
-                if (_avatarRootConstraintScaleSync) _avatarRootConstraintScaleSync.IsSync = _setting.avatarSelfScaling;
+                _config.avatarSelfScaling = !_config.avatarSelfScaling;
+                SaveSetting();
             }
         }
 
@@ -169,13 +157,21 @@ namespace VMCReplaceAvatar
             {
                 if (_rootObject != null)
                     Destroy(_rootObject);
+                if (_floorObject != null)
+                    Destroy(_floorObject);
+
+                _floorObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                _floorObject.transform.position = Vector3.zero;
+                _floorObject.transform.rotation = Quaternion.identity;
+                _floorObject.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+                _floorObject.SetActive(_floorDispay);
 
                 _rootObject = new GameObject("LoadAvatarRoot");
                 _rootObject.transform.position = Vector3.zero;
                 _rootObject.transform.rotation = Quaternion.identity;
                 _rootObject.transform.localScale = Vector3.one;
                 _rootSync = _rootObject.AddComponent<ScaleSync>();
-                _rootSync.IsSync = _setting.avatarSelfScaling;
+                _rootSync.config = _config;
                 _rootSync.TargetTransform = GameObject.Find("HandTrackerRoot").transform;
 
                 string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
@@ -197,14 +193,13 @@ namespace VMCReplaceAvatar
                     _avatarRootConstraintScaleSync = _loadedAvatarModel.AddComponent<PositionConstraintScaleSync>();
                     _avatarRootConstraintScaleSync.TargetConstraintObject = _currentVRMModel;
                     _avatarRootConstraintScaleSync.TargetScaleReferenceObject = GameObject.Find("HandTrackerRoot");
-                    _avatarRootConstraintScaleSync.IsSync = _setting.avatarSelfScaling;
+                    _avatarRootConstraintScaleSync.config = _config;
                     _avatarRootConstraintScaleSync.IsLocal = false;
 
                     var armature = _loadedAvatarModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.AddComponent<PositionConstraintScaleSync>();
                     armature.TargetConstraintObject = _currentVRMModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
                     armature.TargetScaleReferenceObject = GameObject.Find("HandTrackerRoot");
                     armature.IsLocal = true;
-                    armature.IsSync = false;
 
                     Renderer[] newRenderers = _loadedAvatarModel.GetComponentsInChildren<Renderer>(true);
                     foreach (var renderer in newRenderers)
@@ -267,7 +262,6 @@ namespace VMCReplaceAvatar
                                     var pos = avatarBone.gameObject.AddComponent<PositionConstraintScaleSync>();
                                     pos.TargetConstraintObject = vrmBone.gameObject;
                                     pos.TargetScaleReferenceObject = GameObject.Find("HandTrackerRoot");
-                                    pos.IsSync = false;
                                 }
                             }
                         }
@@ -279,21 +273,15 @@ namespace VMCReplaceAvatar
 
         private void OnGUI()
         {
-            if (_currentVRMModel != null && _setting.alwaysDisplayGUI)
+            if (_currentVRMModel != null && _config.alwaysDisplayGUI)
             {
                 GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
                 using (new GUILayout.HorizontalScope())
                 {
                     GUILayout.FlexibleSpace();
-                    using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(600)))
+                    using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(400)))
                     {
-                        _setting.avatarSelfScaling = GUILayout.Toggle(_setting.avatarSelfScaling, "Avatar Self Scaling");
-                        if (_rootObject != null)
-                            _rootObject.GetComponent<ScaleSync>().IsSync = _setting.avatarSelfScaling;
-                        if (_rootSync) _rootSync.IsSync = _setting.avatarSelfScaling;
-                        if (_positionConstraintScaleSync) _positionConstraintScaleSync.IsSync = _setting.avatarSelfScaling;
-                        if (_avatarRootConstraintScaleSync) _avatarRootConstraintScaleSync.IsSync = _setting.avatarSelfScaling;
-
+                        _config.avatarSelfScaling = GUILayout.Toggle(_config.avatarSelfScaling, "Avatar Self Scaling");
 
                         if (GUILayout.Button("\nAvatar Change\n"))
                         {

@@ -4,10 +4,11 @@ using System.Collections.Generic;
 namespace VMCReplaceAvatar
 {
     [JsonObject(MemberSerialization.OptIn)]
-    public class Setting
+    public class Config
     {
         [JsonProperty] public bool alwaysDisplayGUI = true;
         [JsonProperty] public bool avatarSelfScaling = false;
+        [JsonProperty] public float floorOffset = 0f;
         [JsonProperty] public List<VRMAvatarMeshSetting> vrmAvatarMeshSettings = new List<VRMAvatarMeshSetting>();
     }
 

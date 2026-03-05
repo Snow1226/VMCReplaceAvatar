@@ -5,20 +5,21 @@ namespace VMCReplaceAvatar
     public class SelfScaling : MonoBehaviour
     {
         public bool AvatarSelfScaling = false;
-        public Setting Setting;
+        public Config config;
 
         private void Start()
         {
-            AvatarSelfScaling = Setting.avatarSelfScaling;
+            if (config != null)
+                AvatarSelfScaling = config.avatarSelfScaling;
         }
 
         private void Update()
         {
-            if (Setting != null)
+            if (config != null)
             {
-                if (Setting.avatarSelfScaling != AvatarSelfScaling)
+                if (config.avatarSelfScaling != AvatarSelfScaling)
                 {
-                    AvatarSelfScaling = Setting.avatarSelfScaling;
+                    AvatarSelfScaling = config.avatarSelfScaling;
                 }
             }
         }

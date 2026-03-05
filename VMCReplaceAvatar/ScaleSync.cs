@@ -5,13 +5,14 @@ namespace VMCReplaceAvatar
     public class ScaleSync : MonoBehaviour
     {
         public Transform TargetTransform;
-        public bool IsSync = true;
+        public Config config;
+        //public bool IsSync = true;
 
         private void Update()
         {
-            if (TargetTransform)
+            if (TargetTransform != null && config != null)
             {
-                if (IsSync)
+                if (config.avatarSelfScaling)
                 {
                     transform.position = TargetTransform.position;
                     transform.rotation = TargetTransform.rotation;
