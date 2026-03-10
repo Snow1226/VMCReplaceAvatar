@@ -17,7 +17,8 @@ Avatar Changeボタンを押して、事前にVRC用Projectから出力したア
 ※現状キャリブレーション前に呼び出さないと位置が正常になりません。  
   
 ### 設定
-<img width="253" height="416" alt="image" src="https://github.com/user-attachments/assets/a349c209-844a-4457-8388-c488e90cc50a" />
+<img width="253" height="416" alt="image" src="https://github.com/user-attachments/assets/a349c209-844a-4457-8388-c488e90cc50a" />  
+
 ・Avatar Self Scaling(SpoutCamera)
 VirtualMotionCaptureはキャリブレーション後に身長に合わせるためにカメラの位置を実際の位置よりアバターに近づきます。  
 そのためBeatSaberでカメラに寄るとカメラ位置より手前でアバターが消失するため、
