@@ -36,6 +36,7 @@ namespace VMCReplaceAvatar
         private SelfScaling _selfScaling;
         private GameObject _floorObject;
         private bool _floorDispay = false;
+        private GameObject _vrmArmature;
 
         private void Awake()
         {
@@ -44,6 +45,13 @@ namespace VMCReplaceAvatar
 
             _selfScaling = new GameObject("AvatarSelfScaling").AddComponent<SelfScaling>();
             _selfScaling.config = _config;
+
+            _floorObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            _floorObject.transform.position = Vector3.zero;
+            _floorObject.transform.rotation = Quaternion.identity;
+            _floorObject.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+            _floorObject.SetActive(_floorDispay);
+
         }
 
         private void OnDestroy()
@@ -110,8 +118,8 @@ namespace VMCReplaceAvatar
 
             //VRM初期ポーズを複製
             Animator vrmAnimator = _currentVRMModel.GetComponent<Animator>();
-            var armature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
-            _initialPose = Instantiate(armature, armature.transform.position, armature.transform.rotation);
+            _vrmArmature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
+            _initialPose = Instantiate(_vrmArmature, _vrmArmature.transform.position, _vrmArmature.transform.rotation);
 
             Debug.Log("Model Loaded: " + _currentModelName);
 
@@ -157,14 +165,6 @@ namespace VMCReplaceAvatar
             {
                 if (_rootObject != null)
                     Destroy(_rootObject);
-                if (_floorObject != null)
-                    Destroy(_floorObject);
-
-                _floorObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                _floorObject.transform.position = Vector3.zero;
-                _floorObject.transform.rotation = Quaternion.identity;
-                _floorObject.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-                _floorObject.SetActive(_floorDispay);
 
                 _rootObject = new GameObject("LoadAvatarRoot");
                 _rootObject.transform.position = Vector3.zero;
@@ -287,8 +287,44 @@ namespace VMCReplaceAvatar
                         {
                             LoadAvatar();
                         }
+
+                        GUILayout.Space(10);
+
+                        var floor = GUILayout.Toggle(_floorDispay, "Display Dummy Floor");
+                        if(floor != _floorDispay)
+                        {
+                            _floorDispay = floor;
+                            _floorObject.SetActive(_floorDispay);
+                        }
+
+                        GUILayout.Label($"Height Adjust Offset : {_vrmArmature.transform.localPosition.y.ToString("0.###")}");
+
+                        float offset = _vrmArmature.transform.localPosition.y;
+
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            if (GUILayout.Button("<<"))
+                                offset = offset - 0.01f;
+                            if (GUILayout.Button("<"))
+                                offset = offset - 0.001f;
+
+                            if (GUILayout.Button(">"))
+                                offset = offset + 0.001f;
+                            if (GUILayout.Button(">>"))
+                                offset = offset + 0.01f;
+                        }
+                        offset = GUILayout.HorizontalSlider(offset, -0.5f, 0.5f);
+
+                        offset = Mathf.Clamp(offset, -0.5f, 0.5f);
+                        if (offset != _vrmArmature.transform.localPosition.y)
+                            _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, offset, _vrmArmature.transform.localPosition.z);
+
+
+                        GUILayout.Space(10);
+
                         using (new GUILayout.VerticalScope(GUI.skin.box))
                         {
+                            GUILayout.Label("BlendShape Sync Mesh");
                             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
                             foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
                             {
