@@ -28,8 +28,9 @@ VirtualMotionCaptureはキャリブレーション後に身長に合わせるた
 VirtualMotionCapture内に床を表示します。SpoutCameraには映りません。
   
 ・Height Adjust Offset  
+アバターロード時に靴やヒールを探して床面を自動で調整しますが、
+調整が必要な場合に手動で調整してください。
 こちらもキャリブレーション前に調整してください。
-元のVRMと靴やヒールの高さが異なる場合に調整します。
   
 ・Blendshape Sync Mesh  
 チェックを入れたVRMアバターにあるMeshのシェイプキーを、ロードしたVRCアバターで同期します。
