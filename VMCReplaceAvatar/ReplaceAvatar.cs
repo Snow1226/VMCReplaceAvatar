@@ -23,9 +23,12 @@ namespace VMCReplaceAvatar
     {
         private Config _config;
         private VRMAvatarMeshSetting _currentAvatarMeshSetting;
-        private GameObject _currentVRMModel = null;
-        private GameObject _loadedAvatarModel = null;
-        private GameObject _vrmInitialPose = null;
+        private GameObject _vrmModel = null;
+        private GameObject _vrmArmature = null;
+        private GameObject _vrmPose = null;
+        private RestPose _restPose = null;
+
+        private GameObject _avatarModel = null;
         private GameObject _rootObject = null;
 
         private GameObject _scaleSyncTarget = null;
@@ -41,7 +44,6 @@ namespace VMCReplaceAvatar
         private SelfScaling _selfScaling;
         private GameObject _floorObject;
         private bool _floorDispay = false;
-        private GameObject _vrmArmature;
 
         private void Awake()
         {
@@ -98,55 +100,69 @@ namespace VMCReplaceAvatar
 
         private void SetBlendshapeSync()
         {
-            if (_currentVRMModel == null || _loadedAvatarModel == null) return;
+            if (_vrmModel == null || _avatarModel == null) return;
 
-            _loadedAvatarModel.GetComponentsInChildren<BlendShapeSync>(true).ToList().ForEach(x => DestroyImmediate(x));
-            Renderer[] newRenderers = _loadedAvatarModel.GetComponentsInChildren<Renderer>(true);
+            _avatarModel.GetComponentsInChildren<BlendShapeSync>(true).ToList().ForEach(x => DestroyImmediate(x));
+            Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<Renderer>(true);
             foreach (Renderer renderer in newRenderers)
             {
                 if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                 {
                     BlendShapeSync sync = renderer.gameObject.AddComponent<BlendShapeSync>();
-                    sync.sourceRenderer = _currentVRMModel.GetComponentsInChildren<Renderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
+                    sync.sourceRenderer = _vrmModel.GetComponentsInChildren<Renderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
                 }
             }
         }
 
         private void OnModelLoaded(GameObject currentModel)
         {
-            if(_vrmInitialPose != null)
-            {
-                Destroy(_vrmInitialPose);
-                _vrmInitialPose = null;
-            }
+            if(_restPose != null)       
+                Destroy(_restPose);
+
+            if(_vrmPose != null)
+                Destroy(_vrmPose);
 
             if (_scaleSyncTarget == null)
                 _scaleSyncTarget = GameObject.Find("HandTrackerRoot");
 
-            if (_rootObject != null)
-            {
-                Destroy(_rootObject);
-                _rootObject = null;
-            }
-
-            _currentVRMModel = currentModel;
+            _vrmModel = currentModel;
             _currentModelName = currentModel.GetComponent<VRMMeta>().Meta.Title;
 
             //VRM初期ポーズを複製
-            Animator vrmAnimator = _currentVRMModel.GetComponent<Animator>();
+            Animator vrmAnimator = _vrmModel.GetComponent<Animator>();
             _vrmArmature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
 
-            _vrmInitialPose = InstantiateArmature(currentModel, "VRM Initial Pose");
-            
+            _vrmPose = InstantiateArmature(currentModel, "VRM Initial Pose");
+            _restPose = _vrmPose.AddComponent<RestPose>();
+            _restPose.isRestPose = true;
 
-            Debug.Log("Model Loaded: " + _currentModelName);
+            Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
+            Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
+
+            //BoneConstraint
+            foreach (var bone in boneArray)
+            {
+                if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
+                    continue;
+
+                var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
+                var initialBone = initialPoseAnimator.GetBoneTransform((HumanBodyBones)bone);
+
+                if (vrmBone != null && initialBone != null)
+                {
+                    var constraint = initialBone.gameObject.AddComponent<BoneConstraint>();
+                    constraint.restPose = _restPose;
+                    constraint.initialRotation = initialBone.localRotation;
+                    constraint.targetBone = vrmBone;
+
+                    _restPose.boneConstraints.Add(constraint);
+                }
+            }
+            _restPose.isRestPose = false;
 
             var avatarMeshSetting = _config.vrmAvatarMeshSettings.Find(x => x.avatarName == _currentModelName);
-
             if (avatarMeshSetting != null)
-            {
                 _currentAvatarMeshSetting = avatarMeshSetting;
-            }
             else
             {
                 _currentAvatarMeshSetting = new VRMAvatarMeshSetting() { avatarName = _currentModelName };
@@ -171,19 +187,29 @@ namespace VMCReplaceAvatar
             retObj.name = objectName;
             Renderer[] renderers = retObj.GetComponentsInChildren<Renderer>(true);
             foreach (var renderer in renderers)
-                Destroy(renderer.gameObject);
+            {
+                if(renderer != null)
+                    Destroy(renderer.gameObject);
+            }
 
             var comps = retObj.GetComponentsInChildren<Behaviour>(true);
             var exclusionList = new string[] { "Animator" };
             foreach (var comp in comps)
             {
-                if(comp != null)
+                try
                 {
-                    foreach (string d in exclusionList)
+                    if (comp != null)
                     {
-                        if (!comp.GetType().Name.ToLower().Contains(d.ToLower()))
-                            GameObject.Destroy(comp);
+                        foreach (string d in exclusionList)
+                        {
+                            if (!comp.GetType().Name.ToLower().Contains(d.ToLower()))
+                                GameObject.Destroy(comp);
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
                 }
             }
             return retObj;
@@ -226,28 +252,28 @@ namespace VMCReplaceAvatar
 
                 GameObject avatar = asset.LoadAsset<GameObject>(asset.GetAllAssetNames()[0]);
                 asset.Unload(false);
-                if (avatar != null)
+                if (avatar != null && _vrmPose != null)
                 {
-                    if (_loadedAvatarModel != null)
-                        Destroy(_loadedAvatarModel);
+                    if (_avatarModel != null)
+                        Destroy(_avatarModel);
 
-                    _loadedAvatarModel = Instantiate(avatar, _currentVRMModel.transform.position, _currentVRMModel.transform.rotation);
-                    _loadedAvatarModel.transform.localScale = _currentVRMModel.transform.localScale;
+                    _avatarModel = Instantiate(avatar, _vrmModel.transform.position, _vrmModel.transform.rotation);
+                    _avatarModel.transform.localScale = _vrmModel.transform.localScale;
 
-                    _loadedAvatarModel.transform.SetParent(_rootObject.transform);
+                    _avatarModel.transform.SetParent(_rootObject.transform);
 
-                    _avatarRootConstraintScaleSync = _loadedAvatarModel.AddComponent<PositionConstraintScaleSync>();
-                    _avatarRootConstraintScaleSync.TargetConstraintObject = _currentVRMModel;
+                    _avatarRootConstraintScaleSync = _avatarModel.AddComponent<PositionConstraintScaleSync>();
+                    _avatarRootConstraintScaleSync.TargetConstraintObject = _vrmModel;
                     _avatarRootConstraintScaleSync.TargetScaleReferenceObject = _scaleSyncTarget;
                     _avatarRootConstraintScaleSync.config = _config;
                     _avatarRootConstraintScaleSync.IsLocal = false;
 
-                    var armature = _loadedAvatarModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.AddComponent<PositionConstraintScaleSync>();
-                    armature.TargetConstraintObject = _currentVRMModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
+                    var armature = _avatarModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.AddComponent<PositionConstraintScaleSync>();
+                    armature.TargetConstraintObject = _vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
                     armature.TargetScaleReferenceObject = _scaleSyncTarget;
                     armature.IsLocal = true;
 
-                    Renderer[] newRenderers = _loadedAvatarModel.GetComponentsInChildren<Renderer>(true);
+                    Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<Renderer>(true);
                     foreach (var renderer in newRenderers)
                     {
                         renderer.gameObject.layer = AvatarLayer;
@@ -260,23 +286,27 @@ namespace VMCReplaceAvatar
                     //床面調整
                     if (_vrmArmature != null)
                     {
-                        var floorHeight = GetFloorHeight(_loadedAvatarModel);
+                        var floorHeight = GetFloorHeight(_avatarModel);
                         _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -floorHeight, _vrmArmature.transform.localPosition.z);
                     }
 
                     //VRM Mesh非表示
-                    Renderer[] vrmRenderers = _currentVRMModel.GetComponentsInChildren<Renderer>(true);
+                    Renderer[] vrmRenderers = _vrmModel.GetComponentsInChildren<Renderer>(true);
                     foreach (var renderer in vrmRenderers)
                     {
                         renderer.enabled = false;
                     }
 
-                    Animator avatarAnimator = _loadedAvatarModel.GetComponent<Animator>();
-                    Animator vrmAnimator = _currentVRMModel.GetComponent<Animator>();
+
+                    Animator avatarAnimator = _avatarModel.GetComponent<Animator>();
+                    Animator vrmAnimator = _vrmPose.GetComponent<Animator>();
                     Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
 
                     if (avatarAnimator != null && vrmAnimator != null)
                     {
+                        _restPose.isRestPose = true;
+                        _restPose.TransformToRestPose();
+
                         foreach (var bone in boneArray)
                         {
                             if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
@@ -287,20 +317,11 @@ namespace VMCReplaceAvatar
 
                             if (vrmBone != null && avatarBone != null)
                             {
-                                //初期回転合わせ ※キャリブレーション後、VRM1ではおかしくなるので要変更
                                 avatarBone.localEulerAngles = avatarBone.localEulerAngles + vrmBone.localEulerAngles;
 
                                 var rot = avatarBone.gameObject.AddComponent<RotationConstraint>();
                                 rot.weight = 1;
                                 rot.AddSource(new ConstraintSource() { sourceTransform = vrmBone, weight = 1 });
-
-                                /*
-                                // Activateボタンリフレクション　なぜかオフセットが正常な値にならない。
-                                var activate = typeof(RotationConstraint).GetMethod("ActivateAndPreserveOffset", BindingFlags.Instance | BindingFlags.NonPublic);
-                                if (activate != null)
-                                    activate.Invoke(rot, null);
-                                */
-
                                 rot.rotationAtRest = avatarBone.localEulerAngles;
                                 rot.rotationOffset = (Quaternion.Inverse(vrmBone.rotation) * avatarBone.rotation).eulerAngles;
                                 rot.locked = true;
@@ -318,6 +339,7 @@ namespace VMCReplaceAvatar
                                 }
                             }
                         }
+                        _restPose.isRestPose = false;
                     }
                 }
             }
@@ -343,7 +365,7 @@ namespace VMCReplaceAvatar
 
         private void OnGUI()
         {
-            if (_currentVRMModel != null && _config.alwaysDisplayGUI)
+            if (_vrmModel != null && _vrmArmature != null && _config.alwaysDisplayGUI)
             {
                 GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
                 using (new GUILayout.HorizontalScope())
