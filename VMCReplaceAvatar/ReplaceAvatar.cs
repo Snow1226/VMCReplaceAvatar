@@ -26,7 +26,8 @@ namespace VMCReplaceAvatar
         private GameObject _vrmModel = null;
         private GameObject _vrmArmature = null;
         private GameObject _vrmPose = null;
-        private RestPose _restPose = null;
+
+        private bool _restPose = false;
 
         private GameObject _avatarModel = null;
         private GameObject _rootObject = null;
@@ -47,10 +48,13 @@ namespace VMCReplaceAvatar
         private GameObject _floorObject;
         private bool _floorDispay = false;
 
+        private Array _boneArray = Enum.GetValues(typeof(HumanBodyBones));
+
         private void Awake()
         {
-            LoadSetting();
+            LoadConfig();
             VMCEvents.OnModelLoaded += OnModelLoaded;
+            VMCEvents.AfterApplyMotion += AfterApplyMotion;
 
             _selfScaling = new GameObject("AvatarSelfScaling").AddComponent<SelfScaling>();
             _selfScaling.config = _config;
@@ -65,11 +69,12 @@ namespace VMCReplaceAvatar
         private void OnDestroy()
         {
             VMCEvents.OnModelLoaded -= OnModelLoaded;
-            SaveSetting();
+            VMCEvents.AfterApplyMotion -= AfterApplyMotion;
+            SaveConfig();
         }
 
 
-        private void LoadSetting()
+        private void LoadConfig()
         {
             string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
             if (File.Exists(Path.Combine(dllDirectory, "VMCReplaceAvatar.json")))
@@ -81,7 +86,7 @@ namespace VMCReplaceAvatar
             }
         }
 
-        private void SaveSetting()
+        private void SaveConfig()
         {
             var avatarMeshSetting = _config.vrmAvatarMeshSettings.FindIndex(x => x.avatarName == _currentModelName);
             if (avatarMeshSetting >= 0)
@@ -116,11 +121,86 @@ namespace VMCReplaceAvatar
             }
         }
 
+        private void AfterApplyMotion(GameObject currentModel)
+        {
+            Animator vrmAnimator = currentModel.GetComponent<Animator>();
+
+            //中間ArmatureのPoseをVRMモデルのPoseに合わせる
+            if (_vrmPose != null)
+            {
+                //Root Constraint
+                _vrmPose.transform.localPosition = currentModel.transform.localPosition;
+                _vrmPose.transform.localRotation = currentModel.transform.localRotation;
+
+                Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
+
+                //ArmatureConstraint
+                initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition;
+                initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation;
+
+                if (vrmAnimator != null && initialPoseAnimator != null)
+                {
+                    foreach (var bone in _boneArray)
+                    {
+                        if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
+                            continue;
+
+                        var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
+                        var initialPoseBone = initialPoseAnimator.GetBoneTransform((HumanBodyBones)bone);
+
+                        if (!_restPose)
+                        {
+
+                            if (vrmBone != null && initialPoseBone != null)
+                            {
+                                initialPoseBone.localPosition = vrmBone.localPosition;
+                                initialPoseBone.localRotation = vrmBone.localRotation;
+                            }
+                        }
+                        else
+                        {
+                            var initialTransform = initialPoseBone.gameObject.GetComponent<InitialTransform>();
+                            initialPoseBone.position = initialTransform.initialPosition;
+                            initialPoseBone.rotation = initialTransform.initialRotation;
+                        }
+                    }
+                }
+            }
+
+            if(_avatarModel != null && _vrmPose != null)
+            {
+                Animator avatarAnimator = _avatarModel.GetComponent<Animator>();
+                Animator poseAnimator = _vrmPose.GetComponent<Animator>();
+
+                if (avatarAnimator != null && poseAnimator != null)
+                {
+                    foreach (var bone in _boneArray)
+                    {
+                        if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
+                            continue;
+
+                        var avatarBone = avatarAnimator.GetBoneTransform((HumanBodyBones)bone);
+                        var poseBone = poseAnimator.GetBoneTransform((HumanBodyBones)bone);
+
+                        if (avatarBone != null && poseBone != null)
+                        {
+                            var boneConstraint = avatarBone.gameObject.GetComponent<BoneConstraint>();
+                            if (boneConstraint != null)
+                            {
+                                var worldDelta = boneConstraint.sourceTransform.transform.rotation * Quaternion.Inverse(boneConstraint.sourceTransform.initialRotation);
+                                avatarBone.rotation = worldDelta * boneConstraint.worldRotationAtRest;
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+
+
         private void OnModelLoaded(GameObject currentModel)
         {
-            if(_restPose != null)       
-                Destroy(_restPose);
-
             if(_vrmPose != null)
                 Destroy(_vrmPose);
 
@@ -135,32 +215,25 @@ namespace VMCReplaceAvatar
             _vrmArmature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
 
             _vrmPose = InstantiateArmature(currentModel, "VRM Initial Pose");
-            _restPose = _vrmPose.AddComponent<RestPose>();
-            _restPose.isRestPose = true;
 
             Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
             Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
 
-            //BoneConstraint
+            //InitialTransform
             foreach (var bone in boneArray)
             {
                 if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
                     continue;
 
-                var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
                 var initialBone = initialPoseAnimator.GetBoneTransform((HumanBodyBones)bone);
 
-                if (vrmBone != null && initialBone != null)
+                if (initialBone != null)
                 {
-                    var constraint = initialBone.gameObject.AddComponent<BoneConstraint>();
-                    constraint.restPose = _restPose;
-                    constraint.initialRotation = initialBone.localRotation;
-                    constraint.targetBone = vrmBone;
-
-                    _restPose.boneConstraints.Add(constraint);
+                    var constraint = initialBone.gameObject.AddComponent<InitialTransform>();
+                    constraint.initialPosition = initialBone.position;
+                    constraint.initialRotation = initialBone.rotation;
                 }
             }
-            _restPose.isRestPose = false;
 
             var avatarMeshSetting = _config.vrmAvatarMeshSettings.Find(x => x.avatarName == _currentModelName);
             if (avatarMeshSetting != null)
@@ -179,7 +252,7 @@ namespace VMCReplaceAvatar
                     _currentAvatarMeshSetting.meshSettings.Add(meshSetting);
                 }
                 _config.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
-                SaveSetting();
+                SaveConfig();
             }
         }
 
@@ -187,13 +260,13 @@ namespace VMCReplaceAvatar
         {
             var retObj = Instantiate(armatureObject, armatureObject.transform.position, armatureObject.transform.rotation);
             retObj.name = objectName;
+
             Renderer[] renderers = retObj.GetComponentsInChildren<Renderer>(true);
             foreach (var renderer in renderers)
             {
                 if(renderer != null)
                     Destroy(renderer.gameObject);
             }
-
             var comps = retObj.GetComponentsInChildren<Behaviour>(true);
             var exclusionList = new string[] { "Animator" };
             foreach (var comp in comps)
@@ -223,7 +296,15 @@ namespace VMCReplaceAvatar
             if (Input.GetKeyDown(KeyCode.S))
             {
                 _config.avatarSelfScaling = !_config.avatarSelfScaling;
-                SaveSetting();
+                SaveConfig();
+            }
+            if (Input.GetKeyDown(KeyCode.F12))
+            {
+                Renderer[] vrmRenderers = _vrmModel.GetComponentsInChildren<Renderer>(true);
+                foreach (var renderer in vrmRenderers)
+                {
+                    renderer.enabled = !renderer.enabled;
+                }
             }
         }
 
@@ -254,21 +335,21 @@ namespace VMCReplaceAvatar
 
                 GameObject avatar = asset.LoadAsset<GameObject>(asset.GetAllAssetNames()[0]);
                 asset.Unload(false);
-                if (avatar != null && _vrmPose != null)
+                if (avatar != null && _vrmPose != null && _vrmModel != null)
                 {
                     if (_avatarModel != null)
                         Destroy(_avatarModel);
 
-                    _avatarModel = Instantiate(avatar, _vrmModel.transform.position, _vrmModel.transform.rotation);
-                    _avatarModel.transform.localScale = _vrmModel.transform.localScale;
+                    _avatarModel = Instantiate(avatar, _vrmPose.transform.localPosition, _vrmPose.transform.localRotation);
+                    _avatarModel.transform.localScale = _vrmPose.transform.localScale;
 
                     _avatarModel.transform.SetParent(_rootObject.transform);
 
                     _avatarRootConstraintScaleSync = _avatarModel.AddComponent<PositionConstraintScaleSync>();
-                    _avatarRootConstraintScaleSync.TargetConstraintObject = _vrmModel;
+                    _avatarRootConstraintScaleSync.TargetConstraintObject = _vrmPose;
                     _avatarRootConstraintScaleSync.TargetScaleReferenceObject = _scaleSyncTarget;
                     _avatarRootConstraintScaleSync.config = _config;
-                    _avatarRootConstraintScaleSync.IsLocal = false;
+                    _avatarRootConstraintScaleSync.IsLocal = true;
 
                     var armature = _avatarModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.AddComponent<PositionConstraintScaleSync>();
                     armature.TargetConstraintObject = _vrmModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
@@ -299,50 +380,48 @@ namespace VMCReplaceAvatar
                         renderer.enabled = false;
                     }
 
-
                     Animator avatarAnimator = _avatarModel.GetComponent<Animator>();
-                    Animator vrmAnimator = _vrmPose.GetComponent<Animator>();
-                    Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
+                    Animator poseAnimator = _vrmPose.GetComponent<Animator>();
 
-                    if (avatarAnimator != null && vrmAnimator != null)
+                    _restPose = true;
+
+                    if (avatarAnimator != null && poseAnimator != null)
                     {
-                        _restPose.isRestPose = true;
-                        _restPose.TransformToRestPose();
 
-                        foreach (var bone in boneArray)
+                        foreach (var bone in _boneArray)
                         {
                             if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
                                 continue;
 
-                            var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
+                            var poseBone = poseAnimator.GetBoneTransform((HumanBodyBones)bone);
                             var avatarBone = avatarAnimator.GetBoneTransform((HumanBodyBones)bone);
 
-                            if (vrmBone != null && avatarBone != null)
+                            if (poseBone != null && avatarBone != null)
                             {
-                                avatarBone.localEulerAngles = avatarBone.localEulerAngles + vrmBone.localEulerAngles;
+                                var initialTrans = poseBone.gameObject.GetComponent<InitialTransform>();
+                                if(initialTrans != null)
+                                {
+                                    poseBone.position = initialTrans.initialPosition;
+                                    poseBone.rotation = initialTrans.initialRotation;
 
-                                var rot = avatarBone.gameObject.AddComponent<RotationConstraint>();
-                                rot.weight = 1;
-                                rot.AddSource(new ConstraintSource() { sourceTransform = vrmBone, weight = 1 });
-                                rot.rotationAtRest = avatarBone.localEulerAngles;
-                                rot.rotationOffset = (Quaternion.Inverse(vrmBone.rotation) * avatarBone.rotation).eulerAngles;
-                                rot.locked = true;
-                                rot.constraintActive = true;
-                                rot.enabled = true;
+                                    var rot = avatarBone.gameObject.AddComponent<BoneConstraint>();
+                                    rot.sourceTransform = initialTrans;
+                                    rot.worldRotationAtRest = avatarBone.rotation;
+                                }
 
                                 if ((HumanBodyBones)bone == HumanBodyBones.Hips)
                                 {
                                     //Hips高さ合わせ
-                                    avatarBone.position = new Vector3(avatarBone.position.x, vrmBone.position.y, avatarBone.position.z);
+                                    avatarBone.position = new Vector3(avatarBone.position.x, poseBone.position.y, avatarBone.position.z);
 
                                     var pos = avatarBone.gameObject.AddComponent<PositionConstraintScaleSync>();
-                                    pos.TargetConstraintObject = vrmBone.gameObject;
+                                    pos.TargetConstraintObject = poseBone.gameObject;
                                     pos.TargetScaleReferenceObject = _scaleSyncTarget;
                                 }
                             }
                         }
-                        _restPose.isRestPose = false;
                     }
+                    _restPose = false;
                 }
             }
 
@@ -455,7 +534,7 @@ namespace VMCReplaceAvatar
                                 if (isSync != meshSetting.isSync)
                                 {
                                     meshSetting.isSync = isSync;
-                                    SaveSetting();
+                                    SaveConfig();
                                 }
                             }
                             GUILayout.EndScrollView();

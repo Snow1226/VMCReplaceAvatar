@@ -1,27 +1,15 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using UnityEngine;
 
 namespace VMCReplaceAvatar
 {
     public class BoneConstraint : MonoBehaviour
     {
-        public RestPose restPose;
-        public Quaternion initialRotation;
-        public Transform targetBone;
-
-        private void Start()
-        {
-            initialRotation = transform.localRotation;
-        }
-
-        private void Update()
-        {
-            if (restPose != null)
-            {
-                if (restPose.isRestPose)
-                    transform.localRotation = initialRotation;
-                else
-                    transform.localRotation = targetBone.localRotation;
-            }
-        }
+        public InitialTransform sourceTransform;
+        public Quaternion worldRotationAtRest;
     }
 }
