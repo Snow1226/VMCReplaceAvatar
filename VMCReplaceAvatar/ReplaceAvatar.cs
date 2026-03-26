@@ -64,6 +64,8 @@ namespace VMCReplaceAvatar
             _floorObject.transform.rotation = Quaternion.identity;
             _floorObject.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
             _floorObject.SetActive(_floorDispay);
+
+            LoadBurstLibrary();
         }
 
         private void OnDestroy()
@@ -73,6 +75,27 @@ namespace VMCReplaceAvatar
             SaveConfig();
         }
 
+        private void LoadBurstLibrary()
+        {
+            var burstLibraryPath = Path.Combine(Application.dataPath, "Plugins/x86_64/MagicaCloth2.burst.dll");
+            Debug.Log($"Burst Library Path : {burstLibraryPath}");
+            if (File.Exists(burstLibraryPath))
+            {
+                if (!Unity.Burst.BurstRuntime.LoadAdditionalLibrary(burstLibraryPath))
+                {
+                    Debug.LogWarning("MagicaCloth2.burst.dll load failed.");
+                }
+                else
+                {
+                    Debug.LogWarning("MagicaCloth2.burst.dll loaded.");
+
+                }
+            }
+            else
+            {
+                Debug.LogWarning("MagicaCloth2.burst.dll not found.");
+            }
+        }
 
         private void LoadConfig()
         {
