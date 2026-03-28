@@ -12,6 +12,10 @@ BeatSaber用アバターとして使用することを想定しています。
 ・VMC Sport（VMCMod）  
 [https://github.com/Snow1226/VMCSpout](https://github.com/Snow1226/VMCSpout)  
 
+## 導入方法  
+[Release](https://github.com/Snow1226/VMCReplaceAvatar/releases)ページよりダウンロードし、  
+Zipファイルの中身をフォルダごとVirtualMotionCaptureのフォルダに上書きで入れてください。  
+
 ## 使い方  
 Avatar Changeボタンを押して、事前にVRC用Projectから出力したアバターをロードしてください。  
 ※現状キャリブレーション前に呼び出さないと位置が正常になりません。  
