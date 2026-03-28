@@ -3,7 +3,7 @@
 
 using System;
 
-namespace FloorOffsetSender.Osc
+namespace VMCReplaceAvatar.Osc
 {
     internal sealed class OscPacketEncoder
     {

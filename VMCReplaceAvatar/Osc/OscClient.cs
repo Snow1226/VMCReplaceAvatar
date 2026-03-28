@@ -5,7 +5,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace FloorOffsetSender.Osc
+namespace VMCReplaceAvatar.Osc
 {
     public sealed class OscClient : IDisposable
     {

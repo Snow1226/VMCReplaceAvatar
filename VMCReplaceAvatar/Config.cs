@@ -6,9 +6,12 @@ namespace VMCReplaceAvatar
     [JsonObject(MemberSerialization.OptIn)]
     public class Config
     {
-        [JsonProperty] public bool alwaysDisplayGUI = true;
+        [JsonProperty] public bool DisplayUIatStartup = true;
         [JsonProperty] public bool avatarSelfScaling = false;
+        [JsonProperty] public string FloorOffsetSenderAddress = "127.0.0.1";
+        [JsonProperty] public int FloorOffsetPort = 39740;
         [JsonProperty] public List<VRMAvatarMeshSetting> vrmAvatarMeshSettings = new List<VRMAvatarMeshSetting>();
+        [JsonProperty] public List<AvatarFloorOffset> avatarFloorOffsets = new List<AvatarFloorOffset>();
     }
 
     public class VRMAvatarMeshSetting
@@ -21,5 +24,11 @@ namespace VMCReplaceAvatar
     {
         [JsonProperty] public string meshName;
         [JsonProperty] public bool isSync = false;
+    }
+
+    public class AvatarFloorOffset
+    {
+        [JsonProperty] public string avatarName;
+        [JsonProperty] public float offset = 0f;
     }
 }

@@ -1,4 +1,4 @@
-﻿using FloorOffsetSender.Osc;
+﻿using VMCReplaceAvatar.Osc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,17 +6,16 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using VMC;
+using System.Runtime.InteropServices;
 
-namespace VMCReplaceAvatar.Osc
+namespace VMCReplaceAvatar
 {
     public class FloorOffset : MonoBehaviour
     {
         private GameObject _scaleSyncTarget;
         private float _currentScale;
-        private Vector3 _hipsPosition;
-        private Transform _hipsTransform;
 
-        private int _port = 39740;
+        public Config Config;
 
         internal List<SendTask> sendTasks = new List<SendTask>();
 
@@ -38,10 +37,7 @@ namespace VMCReplaceAvatar.Osc
 
         private void OnDestroy()
         {
-            foreach (SendTask sendTask in sendTasks)
-            {
-                RemoveTask(sendTask.port);
-            }
+            RemoveTask(Config.FloorOffsetPort);
         }
 
         private void OnModelLoaded(GameObject model)
@@ -49,24 +45,16 @@ namespace VMCReplaceAvatar.Osc
             var anim = model.GetComponent<Animator>();
             if (anim != null)
             {
-                _hipsTransform = anim.GetBoneTransform(HumanBodyBones.Hips);
-                _hipsPosition = _hipsTransform.localPosition;
-                AddSendTask("127.0.0.1", _port);
+                AddSendTask();
             }
         }
 
-        private void AddSendTask(string address = "127.0.0.1", int port = 39740)
+        public void AddSendTask()
         {
-            if (_hipsTransform == null)
-            {
-                Debug.LogError($"Hips Transform Not Found.");
-                return;
-            }
-
             SendTask sendTask = new SendTask();
-            sendTask.offset = (_hipsPosition.y - _hipsPosition.y * (1.0f / _currentScale)) * 0.95f;
-            sendTask.port = port;
-            sendTask.client = new OscClient(address, port);
+            sendTask.offset = FloorOffsetCalculate();
+            sendTask.port = Config.FloorOffsetPort;
+            sendTask.client = new OscClient(Config.FloorOffsetSenderAddress, Config.FloorOffsetPort);
             if (sendTask.client != null)
             {
                 sendTasks.Add(sendTask);
@@ -106,19 +94,24 @@ namespace VMCReplaceAvatar.Osc
             });
         }
 
+        private float FloorOffsetCalculate()
+        {
+            var scale = new Vector3(1.0f / _scaleSyncTarget.transform.localScale.x, 1.0f / _scaleSyncTarget.transform.localScale.y, 1.0f / _scaleSyncTarget.transform.localScale.z) ;
+            return -Vector3.Scale(scale, _scaleSyncTarget.transform.localPosition).y;
+        }
+
         private void LateUpdate()
         {
-            if (_scaleSyncTarget != null && _hipsTransform != null)
+            if (_scaleSyncTarget != null)
             {
                 if (_currentScale != _scaleSyncTarget.transform.localScale.y)
                 {
                     _currentScale = _scaleSyncTarget.transform.localScale.y;
 
-                    var diff = (_hipsPosition.y - _hipsPosition.y * (1.0f / _currentScale)) * 0.9f;
                     sendTasks.ForEach((sendTask) => {
-                        sendTask.offset = diff;
+                        sendTask.offset = FloorOffsetCalculate();
                     });
-                    Debug.Log($"Scale Changed : {_currentScale} {diff}");
+                    Debug.Log($"Scale Changed : {FloorOffsetCalculate()}");
                 }
             }
 

@@ -50,6 +50,12 @@ namespace VMCReplaceAvatar
 
         private Array _boneArray = Enum.GetValues(typeof(HumanBodyBones));
 
+        private FloorOffset _floorOffset;
+        private string _address;
+        private int _port;
+
+        private bool _displayUI;
+
         private void Awake()
         {
             LoadConfig();
@@ -66,6 +72,13 @@ namespace VMCReplaceAvatar
             _floorObject.SetActive(_floorDispay);
 
             LoadBurstLibrary();
+
+            _floorOffset = new GameObject("FloorOffset").AddComponent<FloorOffset>();
+            _floorOffset.Config = _config;
+            _address = _config.FloorOffsetSenderAddress;
+            _port = _config.FloorOffsetPort;
+
+            _displayUI = _config.DisplayUIatStartup;
         }
 
         private void OnDestroy()
@@ -126,6 +139,12 @@ namespace VMCReplaceAvatar
 
             //BlendShape Sync
             SetBlendshapeSync();
+        }
+
+        [OnSetting]
+        public void OnSetting()
+        {
+            _displayUI = true;
         }
 
         private void SetBlendshapeSync()
@@ -469,7 +488,7 @@ namespace VMCReplaceAvatar
 
         private void OnGUI()
         {
-            if (_vrmModel != null && _vrmArmature != null && _config.alwaysDisplayGUI)
+            if (_vrmModel != null && _vrmArmature != null && _displayUI)
             {
                 GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
                 using (new GUILayout.HorizontalScope())
@@ -487,7 +506,7 @@ namespace VMCReplaceAvatar
                         GUILayout.Space(10);
 
                         var floor = GUILayout.Toggle(_floorDispay, "Display Dummy Floor");
-                        if(floor != _floorDispay)
+                        if (floor != _floorDispay)
                         {
                             _floorDispay = floor;
                             _floorObject.SetActive(_floorDispay);
@@ -514,7 +533,7 @@ namespace VMCReplaceAvatar
                         offset = Mathf.Clamp(offset, -0.5f, 0.5f);
                         if (offset != _vrmArmature.transform.localPosition.y)
                             _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, offset, _vrmArmature.transform.localPosition.z);
-                        if(_avatarModel != null)
+                        if (_avatarModel != null)
                         {
                             GUILayout.Space(5);
                             using (new GUILayout.VerticalScope(GUI.skin.box))
@@ -533,7 +552,7 @@ namespace VMCReplaceAvatar
                                         _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -offsetValue, _vrmArmature.transform.localPosition.z);
                                     }
                                 }
-                                _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition);
+                                _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition, GUILayout.Height(150));
                                 var toggleCount = 0;
                                 foreach (var mesh in meshes)
                                 {
@@ -550,7 +569,7 @@ namespace VMCReplaceAvatar
                         using (new GUILayout.VerticalScope(GUI.skin.box))
                         {
                             GUILayout.Label("BlendShape Sync Mesh");
-                            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
+                            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 150 : 300));
                             foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
                             {
                                 bool isSync = GUILayout.Toggle(meshSetting.isSync, meshSetting.meshName);
@@ -562,8 +581,39 @@ namespace VMCReplaceAvatar
                             }
                             GUILayout.EndScrollView();
                         }
-                    }
 
+                        GUILayout.Space(10);
+
+                        using (new GUILayout.VerticalScope())
+                        {
+                            GUILayout.Label("Floor Offset Sender");
+                            using (new GUILayout.HorizontalScope())
+                            {
+                                GUILayout.Label("Address");
+                                GUILayout.Label("Port");
+                                GUILayout.Label(" ");
+                            }
+                            using (new GUILayout.HorizontalScope())
+                            {
+                                _address = GUILayout.TextField(_address);
+                                _port = int.Parse(GUILayout.TextField(_port.ToString()));
+                                if (GUILayout.Button("Apply"))
+                                {
+                                    if(_address != _config.FloorOffsetSenderAddress || _port != _config.FloorOffsetPort)
+                                    {
+                                        _floorOffset.RemoveTask(_config.FloorOffsetPort);
+
+                                        _config.FloorOffsetSenderAddress = _address;
+                                        _config.FloorOffsetPort = _port;
+
+                                        _floorOffset.AddSendTask();
+
+                                    }
+                                }
+                            }
+                        }
+
+                    }
                 }
                 GUILayout.EndArea();
             }

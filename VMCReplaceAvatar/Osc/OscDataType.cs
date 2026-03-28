@@ -4,7 +4,7 @@
 using System;
 using System.Text;
 
-namespace FloorOffsetSender.Osc
+namespace VMCReplaceAvatar.Osc
 {
     internal static class OscDataTypes
     {
