@@ -17,6 +17,7 @@ namespace VMCReplaceAvatar
     public class VRMAvatarMeshSetting
     {
         [JsonProperty] public string avatarName;
+        [JsonProperty] public bool ignoreSyncInitialValue;
         [JsonProperty] public List<MeshSetting> meshSettings = new List<MeshSetting>();
     }
 

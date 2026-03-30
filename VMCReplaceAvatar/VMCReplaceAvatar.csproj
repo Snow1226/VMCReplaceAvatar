@@ -91,8 +91,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BlendShapeData.cs" />
     <Compile Include="BlendShapeSync.cs" />
     <Compile Include="BoneConstraint.cs" />
+    <Compile Include="InitialShapes.cs" />
     <Compile Include="InitialTransform.cs" />
     <Compile Include="FloorOffset.cs" />
     <Compile Include="Osc\OscClient.cs" />

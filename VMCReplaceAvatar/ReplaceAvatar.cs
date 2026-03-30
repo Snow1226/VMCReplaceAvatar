@@ -159,6 +159,7 @@ namespace VMCReplaceAvatar
                 if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                 {
                     BlendShapeSync sync = renderer.gameObject.AddComponent<BlendShapeSync>();
+                    sync.meshSetting = _currentAvatarMeshSetting;
                     sync.sourceRenderer = _vrmModel.GetComponentsInChildren<Renderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
                 }
             }
@@ -249,6 +250,9 @@ namespace VMCReplaceAvatar
 
         private void OnModelLoaded(GameObject currentModel)
         {
+            if(_avatarModel != null)
+                Destroy(_avatarModel);
+
             if(_vrmPose != null)
                 Destroy(_vrmPose);
 
@@ -413,6 +417,10 @@ namespace VMCReplaceAvatar
                     Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<Renderer>(true);
                     foreach (var renderer in newRenderers)
                     {
+                        SkinnedMeshRenderer skinnedMeshRenderer = renderer as SkinnedMeshRenderer;
+                        if (skinnedMeshRenderer != null)
+                            skinnedMeshRenderer.gameObject.AddComponent<InitialShapes>();
+
                         renderer.gameObject.layer = AvatarLayer;
                         if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                         {
@@ -597,6 +605,11 @@ namespace VMCReplaceAvatar
                         using (new GUILayout.VerticalScope(GUI.skin.box))
                         {
                             GUILayout.Label("BlendShape Sync Mesh");
+
+                            _currentAvatarMeshSetting.ignoreSyncInitialValue = GUILayout.Toggle(_currentAvatarMeshSetting.ignoreSyncInitialValue, "Ignore Sync if initial Value");
+
+                            GUILayout.Space(10);
+
                             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 150 : 300));
                             foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
                             {
