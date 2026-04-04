@@ -96,19 +96,12 @@ namespace VMCReplaceAvatar
             if (File.Exists(burstLibraryPath))
             {
                 if (!Unity.Burst.BurstRuntime.LoadAdditionalLibrary(burstLibraryPath))
-                {
                     Debug.LogWarning("MagicaCloth2.burst.dll load failed.");
-                }
                 else
-                {
                     Debug.LogWarning("MagicaCloth2.burst.dll loaded.");
-
-                }
             }
             else
-            {
                 Debug.LogWarning("MagicaCloth2.burst.dll not found.");
-            }
         }
 
         private void LoadConfig()
@@ -127,13 +120,9 @@ namespace VMCReplaceAvatar
         {
             var avatarMeshSetting = _config.vrmAvatarMeshSettings.FindIndex(x => x.avatarName == _currentModelName);
             if (avatarMeshSetting >= 0)
-            {
                 _config.vrmAvatarMeshSettings[avatarMeshSetting] = _currentAvatarMeshSetting;
-            }
             else
-            {
                 _config.vrmAvatarMeshSettings.Add(_currentAvatarMeshSetting);
-            }
 
             string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
             File.WriteAllText(Path.Combine(dllDirectory, "VMCReplaceAvatar.json"), JsonConvert.SerializeObject(_config, Formatting.Indented));
