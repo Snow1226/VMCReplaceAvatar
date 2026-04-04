@@ -506,16 +506,29 @@ namespace VMCReplaceAvatar
         private float GetFloorHeight(GameObject avatar)
         {
             float floorHeight = float.MaxValue;
-            SkinnedMeshRenderer[] skinnedMeshRenderers = avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            foreach (var renderer in skinnedMeshRenderers)
+            try
             {
-                Vector3[] vertices = renderer.sharedMesh.vertices;
-                List<Vector3> worldVertices = new List<Vector3>();
-                foreach (var vertex in vertices)
-                    worldVertices.Add(renderer.gameObject.transform.TransformPoint(vertex));
-                var min = worldVertices.Min(m => m.y);
-                if (min < floorHeight)
-                    floorHeight = min;
+                SkinnedMeshRenderer[] skinnedMeshRenderers = avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                foreach (var renderer in skinnedMeshRenderers)
+                {
+                    Vector3[] vertices = renderer.sharedMesh?.vertices;
+                    List<Vector3> worldVertices = new List<Vector3>();
+                    if (vertices != null || vertices.Length > 0)
+                    {
+                        foreach (var vertex in vertices)
+                            worldVertices.Add(renderer.gameObject.transform.TransformPoint(vertex));
+                        var min = worldVertices.Min(m => m.y);
+                        if (min < floorHeight)
+                            floorHeight = min;
+                    }
+                    else
+                        Debug.LogWarning($"GetFloorHeight : No vertices found in {renderer.gameObject.name}");
+                }
+
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"GetFloorHeight Error : {e.Message}");
             }
             return floorHeight;
         }
