@@ -483,12 +483,6 @@ namespace VMCReplaceAvatar
 
                         foreach (var bone in _boneArray)
                         {
-                            if(bone == null)
-                            {
-                                Debug.LogWarning("Bone is null in LoadAvatar.");
-                                continue;
-                            }
-
                             if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
                                 continue;
 
