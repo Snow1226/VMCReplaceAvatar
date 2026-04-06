@@ -14,7 +14,7 @@ namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.1.3",
+    Version: "0.1.4",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -26,6 +26,7 @@ namespace VMCReplaceAvatar
         private GameObject _vrmModel = null;
         private GameObject _vrmArmature = null;
         private GameObject _vrmPose = null;
+        private GameObject _vrmPoseRoot = null;
 
         private bool _restPose = false;
 
@@ -245,6 +246,9 @@ namespace VMCReplaceAvatar
             if(_vrmPose != null)
                 Destroy(_vrmPose);
 
+            if(_vrmPoseRoot != null)
+                Destroy(_vrmPoseRoot);
+
             if (_scaleSyncTarget == null)
                 _scaleSyncTarget = GameObject.Find("HandTrackerRoot");
 
@@ -255,7 +259,14 @@ namespace VMCReplaceAvatar
             Animator vrmAnimator = _vrmModel.GetComponent<Animator>();
             _vrmArmature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
 
+            _vrmPoseRoot = new GameObject("VRM Pose Root");
+            _vrmPoseRoot.transform.position = new Vector3(0.5f, 0, 0);
+            _vrmPoseRoot.transform.rotation = Quaternion.identity;  
+
             _vrmPose = InstantiateArmature(currentModel, "VRM Initial Pose");
+            _vrmPose.transform.SetParent(_vrmPoseRoot.transform);
+            _vrmPose.transform.localPosition = Vector3.zero;
+            _vrmPose.transform.localRotation = Quaternion.identity;
 
             Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
             Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
@@ -306,8 +317,9 @@ namespace VMCReplaceAvatar
             foreach (var renderer in renderers)
             {
                 if(renderer != null)
-                    Destroy(renderer.gameObject);
+                    renderer.enabled = false;
             }
+            /*
             var comps = retObj.GetComponentsInChildren<Behaviour>(true);
             var exclusionList = new string[] { "Animator" };
             foreach (var comp in comps)
@@ -328,6 +340,7 @@ namespace VMCReplaceAvatar
                     Debug.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
                 }
             }
+            */
             return retObj;
         }
 
@@ -343,6 +356,11 @@ namespace VMCReplaceAvatar
             {
                 Renderer[] vrmRenderers = _vrmModel.GetComponentsInChildren<Renderer>(true);
                 foreach (var renderer in vrmRenderers)
+                {
+                    renderer.enabled = !renderer.enabled;
+                }
+                Renderer[] vrmPoseRenderers = _vrmPose.GetComponentsInChildren<Renderer>(true);
+                foreach (var renderer in vrmPoseRenderers)
                 {
                     renderer.enabled = !renderer.enabled;
                 }
@@ -413,8 +431,8 @@ namespace VMCReplaceAvatar
                     foreach (var renderer in newRenderers)
                     {
                         SkinnedMeshRenderer skinnedMeshRenderer = renderer as SkinnedMeshRenderer;
-                        if (skinnedMeshRenderer != null)
-                            skinnedMeshRenderer.gameObject.AddComponent<InitialShapes>();
+                            if (skinnedMeshRenderer != null)
+                                skinnedMeshRenderer.gameObject.AddComponent<InitialShapes>();
 
                         renderer.gameObject.layer = AvatarLayer;
                         if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)

@@ -7,7 +7,7 @@ namespace VMCReplaceAvatar
         public Vector3 initialPosition;
         public Quaternion initialRotation;
 
-        private void Start()
+        private void Awake()
         {
             initialRotation = transform.localRotation;
             initialPosition = transform.localPosition;

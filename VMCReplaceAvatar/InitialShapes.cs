@@ -13,21 +13,29 @@ namespace VMCReplaceAvatar
 
         private void Awake() 
         {
-            var skinnedMeshRenderer = GetComponent<SkinnedMeshRenderer>();
-            if (skinnedMeshRenderer != null)
+            try
             {
-                int blendShapeCount = skinnedMeshRenderer.sharedMesh.blendShapeCount;
-                for (int i = 0; i < blendShapeCount; i++)
+                var skinnedMeshRenderer = GetComponent<SkinnedMeshRenderer>();
+                if (skinnedMeshRenderer != null && skinnedMeshRenderer.sharedMesh != null)
                 {
-                    string blendShapeName = skinnedMeshRenderer.sharedMesh.GetBlendShapeName(i);
-                    float initialWeight = skinnedMeshRenderer.GetBlendShapeWeight(i);
-                    initialBlendShapes.Add(new BlendShapeData
+                    int blendShapeCount = skinnedMeshRenderer.sharedMesh.blendShapeCount;
+                    for (int i = 0; i < blendShapeCount; i++)
                     {
-                        blendShapeIndex = i,
-                        blendShapeName = blendShapeName,
-                        initialWeight = initialWeight
-                    });
+                        string blendShapeName = skinnedMeshRenderer.sharedMesh.GetBlendShapeName(i);
+                        float initialWeight = skinnedMeshRenderer.GetBlendShapeWeight(i);
+                        initialBlendShapes.Add(new BlendShapeData
+                        {
+                            blendShapeIndex = i,
+                            blendShapeName = blendShapeName,
+                            initialWeight = initialWeight
+                        });
+                    }
                 }
+
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error in {transform.gameObject.name} InitialShapes Awake: " + e.Message);
             }
         }
     }
