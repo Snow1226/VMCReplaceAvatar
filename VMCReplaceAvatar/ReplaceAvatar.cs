@@ -146,14 +146,14 @@ namespace VMCReplaceAvatar
             if (_vrmModel == null || _avatarModel == null) return;
 
             _avatarModel.GetComponentsInChildren<BlendShapeSync>(true).ToList().ForEach(x => DestroyImmediate(x));
-            Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<Renderer>(true);
+            Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             foreach (Renderer renderer in newRenderers)
             {
                 if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                 {
                     BlendShapeSync sync = renderer.gameObject.AddComponent<BlendShapeSync>();
                     sync.meshSetting = _currentAvatarMeshSetting;
-                    sync.sourceRenderer = _vrmModel.GetComponentsInChildren<Renderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
+                    sync.sourceRenderer = _vrmModel.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
                 }
             }
         }
@@ -430,18 +430,17 @@ namespace VMCReplaceAvatar
                     armature.TargetScaleReferenceObject = _scaleSyncTarget;
                     armature.IsLocal = true;
 
-                    Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<Renderer>(true);
+                    Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<SkinnedMeshRenderer>(true);
                     foreach (var renderer in newRenderers)
                     {
-                        SkinnedMeshRenderer skinnedMeshRenderer = renderer as SkinnedMeshRenderer;
-                            if (skinnedMeshRenderer != null)
-                                skinnedMeshRenderer.gameObject.AddComponent<InitialShapes>();
+                        if (renderer != null)
+                            renderer.gameObject.AddComponent<InitialShapes>();
+                        else
+                            Debug.LogError($"Renderer is not SkinnedMeshRenderer : {renderer.gameObject.name}");
 
                         renderer.gameObject.layer = AvatarLayer;
                         if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
-                        {
                             SetBlendshapeSync();
-                        }
                     }
 
                     //床面調整
@@ -506,8 +505,8 @@ namespace VMCReplaceAvatar
                                     var initialTrans = poseBone.gameObject.GetComponent<InitialTransform>();
                                     if (initialTrans != null)
                                     {
-                                        poseBone.position = initialTrans.initialPosition;
-                                        poseBone.rotation = initialTrans.initialRotation;
+                                        poseBone.localPosition = initialTrans.initialPosition;
+                                        poseBone.localRotation = initialTrans.initialRotation;
 
                                         if (!_debugLoad)
                                         {
@@ -603,11 +602,13 @@ namespace VMCReplaceAvatar
                             LoadAvatar();
                         }
 
+                        /*
                         using(new GUILayout.HorizontalScope())
                         {
                             GUILayout.FlexibleSpace();
                             _debugLoad = GUILayout.Toggle(_debugLoad, "Debug Mode");
                         }
+                        */
 
                         GUILayout.Space(10);
 
