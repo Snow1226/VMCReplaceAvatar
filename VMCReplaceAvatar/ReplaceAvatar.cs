@@ -14,7 +14,7 @@ namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.1.6",
+    Version: "0.1.7",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -60,6 +60,8 @@ namespace VMCReplaceAvatar
 
         private bool _debugLoad = false;
         private bool _loadedAvatarIsDebugMode = false;
+
+        private bool _debugPose = false;
 
         private void Awake()
         {
@@ -165,40 +167,69 @@ namespace VMCReplaceAvatar
             //中間ArmatureのPoseをVRMモデルのPoseに合わせる
             if (_vrmPose != null)
             {
-                //Root Constraint
-                _vrmPose.transform.localPosition = currentModel.transform.localPosition;
-                _vrmPose.transform.localRotation = currentModel.transform.localRotation;
-
-                Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
-
-                //ArmatureConstraint
-                initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition;
-                initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation;
-
-                if (vrmAnimator != null && initialPoseAnimator != null)
+                if (!_debugPose)
                 {
+                    //Root Constraint
+                    _vrmPose.transform.localPosition = currentModel.transform.localPosition;
+                    _vrmPose.transform.localRotation = currentModel.transform.localRotation;
+
+                    Animator initialPoseAnimator = _vrmPose.GetComponent<Animator>();
+
+                    //ArmatureConstraint
+                    initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localPosition;
+                    initialPoseAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.transform.localRotation;
+
+                    if (vrmAnimator != null && initialPoseAnimator != null)
+                    {
+                        foreach (var bone in _boneArray)
+                        {
+                            if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
+                                continue;
+
+                            var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
+                            var initialPoseBone = initialPoseAnimator.GetBoneTransform((HumanBodyBones)bone);
+
+                            if (!_restPose)
+                            {
+
+                                if (vrmBone != null && initialPoseBone != null)
+                                {
+                                    initialPoseBone.localPosition = vrmBone.localPosition;
+                                    initialPoseBone.localRotation = vrmBone.localRotation;
+                                }
+                            }
+                            else
+                            {
+                                var initialTransform = initialPoseBone.gameObject.GetComponent<InitialTransform>();
+                                initialPoseBone.localPosition = initialTransform.initialPosition;
+                                initialPoseBone.localRotation = initialTransform.initialRotation;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var poseAnimator = _vrmPose.GetComponent<Animator>();
+                    // 一旦同期用VRMを初期ポーズに戻す
+                    var rootInitial = _vrmPose.GetComponent<InitialTransform>();
+                    if (rootInitial != null)
+                    {
+                        _vrmPose.transform.localPosition = rootInitial.initialPosition;
+                        _vrmPose.transform.localRotation = rootInitial.initialRotation;
+                    }
                     foreach (var bone in _boneArray)
                     {
                         if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
                             continue;
-
-                        var vrmBone = vrmAnimator.GetBoneTransform((HumanBodyBones)bone);
-                        var initialPoseBone = initialPoseAnimator.GetBoneTransform((HumanBodyBones)bone);
-
-                        if (!_restPose)
+                        var poseBone = poseAnimator.GetBoneTransform((HumanBodyBones)bone);
+                        if (poseBone != null)
                         {
-
-                            if (vrmBone != null && initialPoseBone != null)
+                            var initialTrans = poseBone.gameObject.GetComponent<InitialTransform>();
+                            if (initialTrans != null)
                             {
-                                initialPoseBone.localPosition = vrmBone.localPosition;
-                                initialPoseBone.localRotation = vrmBone.localRotation;
+                                poseBone.localPosition = initialTrans.initialPosition;
+                                poseBone.localRotation = initialTrans.initialRotation;
                             }
-                        }
-                        else
-                        {
-                            var initialTransform = initialPoseBone.gameObject.GetComponent<InitialTransform>();
-                            initialPoseBone.position = initialTransform.initialPosition;
-                            initialPoseBone.rotation = initialTransform.initialRotation;
                         }
                     }
                 }
@@ -275,6 +306,12 @@ namespace VMCReplaceAvatar
             Array boneArray = Enum.GetValues(typeof(HumanBodyBones));
 
             //InitialTransform
+            var rootConstraint = _vrmPose.AddComponent<InitialTransform>();
+            if(rootConstraint != null)
+            {
+                rootConstraint.initialPosition = _vrmPose.transform.localPosition;
+                rootConstraint.initialRotation = _vrmPose.transform.localRotation;
+            }
             foreach (var bone in boneArray)
             {
                 if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
@@ -285,8 +322,8 @@ namespace VMCReplaceAvatar
                 if (initialBone != null)
                 {
                     var constraint = initialBone.gameObject.AddComponent<InitialTransform>();
-                    constraint.initialPosition = initialBone.position;
-                    constraint.initialRotation = initialBone.rotation;
+                    constraint.initialPosition = initialBone.localPosition;
+                    constraint.initialRotation = initialBone.localRotation;
                 }
             }
 
@@ -368,7 +405,11 @@ namespace VMCReplaceAvatar
                     renderer.enabled = !renderer.enabled;
                 }
             }
-            if(Input.GetKeyDown(KeyCode.Tab))
+            if(Input.GetKeyDown(KeyCode.F11))
+            {
+                _debugPose = !_debugPose;
+            }
+            if (Input.GetKeyDown(KeyCode.Tab))
             {
                 _displayUI = !_displayUI;
             }
@@ -407,6 +448,14 @@ namespace VMCReplaceAvatar
                 {
                     if (_avatarModel != null)
                         Destroy(_avatarModel);
+
+                    // 初期ポーズルートを初期値に戻す
+                    var root = _vrmPose.GetComponent<InitialTransform>();
+                    if (root != null)
+                    {
+                        _vrmPose.transform.localPosition = root.initialPosition;
+                        _vrmPose.transform.localRotation = root.initialRotation;
+                    }
 
                     _avatarModel = Instantiate(avatar, _vrmPose.transform.localPosition, _vrmPose.transform.localRotation);
                     _avatarModel.transform.localScale = _vrmPose.transform.localScale;
@@ -490,6 +539,12 @@ namespace VMCReplaceAvatar
                     if (avatarAnimator != null && poseAnimator != null)
                     {
                         // 一旦同期用VRMを初期ポーズに戻す
+                        var rootInitial = _vrmPose.GetComponent<InitialTransform>();
+                        if (rootInitial != null)
+                        {
+                            _vrmPose.transform.localPosition = rootInitial.initialPosition;
+                            _vrmPose.transform.localRotation = rootInitial.initialRotation;
+                        }
                         foreach (var bone in _boneArray)
                         {
                             if ((HumanBodyBones)bone == HumanBodyBones.LastBone)
@@ -549,8 +604,8 @@ namespace VMCReplaceAvatar
 
                                     if ((HumanBodyBones)bone == HumanBodyBones.Hips)
                                     {
-                                        //Hips高さ合わせ
-                                        avatarBone.position = new Vector3(avatarBone.position.x, poseBone.position.y, avatarBone.position.z);
+                                        //Hips高さ合わせ -> 不要
+                                        //avatarBone.localPosition = new Vector3(avatarBone.localPosition.x, poseBone.localPosition.y, avatarBone.localPosition.z);
 
                                         var pos = avatarBone.gameObject.AddComponent<PositionConstraintScaleSync>();
                                         pos.TargetConstraintObject = poseBone.gameObject;
