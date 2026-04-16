@@ -14,7 +14,7 @@ namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.1.7",
+    Version: "0.1.8",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -481,6 +481,15 @@ namespace VMCReplaceAvatar
                     armature.TargetScaleReferenceObject = _scaleSyncTarget;
                     armature.IsLocal = true;
 
+                    // レイヤー移動
+                    Transform[] transforms = _avatarModel.GetComponentsInChildren<Transform>(true);
+                    foreach (var t in transforms)
+                    {
+                        if(t != null)
+                            t.gameObject.layer = AvatarLayer;
+                    }
+
+                    // BlendShapeSync追加
                     Renderer[] newRenderers = _avatarModel.GetComponentsInChildren<SkinnedMeshRenderer>(true);
                     foreach (var renderer in newRenderers)
                     {
@@ -489,7 +498,6 @@ namespace VMCReplaceAvatar
                         else
                             Debug.LogError($"Renderer is not SkinnedMeshRenderer : {renderer.gameObject.name}");
 
-                        renderer.gameObject.layer = AvatarLayer;
                         if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                             SetBlendshapeSync();
                     }
