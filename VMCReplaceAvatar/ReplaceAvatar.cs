@@ -74,6 +74,7 @@ namespace VMCReplaceAvatar
         
         private bool _replaceAvatarUIEnable = true;
         private bool _lightUIEnable = false;
+        private bool _portUIEnable = false;
 
         private void Awake()
         {
@@ -703,9 +704,62 @@ namespace VMCReplaceAvatar
                     {
                         GUILayout.FlexibleSpace();
 
+                        if (_portUIEnable)
+                        {
+                            using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(160)))
+                            {
+                                using (new GUILayout.VerticalScope())
+                                {
+                                    GUILayout.Label("Floor Offset Sender");
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        GUILayout.Label("Address");
+                                        GUILayout.Label("Port");
+                                        GUILayout.Label(" ");
+                                    }
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        _address = GUILayout.TextField(_address);
+                                        _port = int.Parse(GUILayout.TextField(_port.ToString()));
+                                        if (GUILayout.Button("Apply"))
+                                        {
+                                            if (_address != _config.FloorOffsetSenderAddress || _port != _config.FloorOffsetPort)
+                                            {
+                                                _floorOffset.RemoveTask(_config.FloorOffsetPort);
+
+                                                _config.FloorOffsetSenderAddress = _address;
+                                                _config.FloorOffsetPort = _port;
+
+                                                _floorOffset.AddSendTask();
+
+                                            }
+                                        }
+                                    }
+                                }
+                                GUILayout.Space(10);
+
+                                GUILayout.Label("Light Receiver Port");
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    _lightPort = int.Parse(GUILayout.TextField(_lightPort.ToString()));
+                                    if (GUILayout.Button("Apply"))
+                                    {
+                                        if (_lightPort != _config.LightReceivePort)
+                                        {
+                                            _lightManager.OscServerFinalized();
+
+                                            _config.LightReceivePort = _lightPort;
+
+                                            _lightManager.Initialize();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (_lightUIEnable)
                         {
-                            using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(240)))
+                            using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(200)))
                             {
                                 _config.EnableSaberLight = GUILayout.Toggle(_config.EnableSaberLight, "Use SaberLight");
 
@@ -761,25 +815,6 @@ namespace VMCReplaceAvatar
                                 {
                                     _config.SaberLightIntensity = lightIntensity;
                                     _lightManager.SetLightData();
-                                }
-
-                                GUILayout.Space(10);
-
-                                GUILayout.Label("Light Receiver Port");
-                                using (new GUILayout.HorizontalScope())
-                                {
-                                    _lightPort = int.Parse(GUILayout.TextField(_lightPort.ToString()));
-                                    if (GUILayout.Button("Apply"))
-                                    {
-                                        if (_lightPort != _config.LightReceivePort)
-                                        {
-                                            _lightManager.OscServerFinalized();
-
-                                            _config.LightReceivePort = _lightPort;
-
-                                            _lightManager.Initialize();
-                                        }
-                                    }
                                 }
                             }
 
@@ -853,7 +888,7 @@ namespace VMCReplaceAvatar
                                                 _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -offsetValue, _vrmArmature.transform.localPosition.z);
                                             }
                                         }
-                                        _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition, GUILayout.Height(120));
+                                        _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition, GUILayout.Height(140));
                                         var toggleCount = 0;
                                         foreach (var mesh in meshes)
                                         {
@@ -877,7 +912,7 @@ namespace VMCReplaceAvatar
 
                                     GUILayout.Space(10);
 
-                                    _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 120 : 240));
+                                    _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 140 : 280));
                                     foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
                                     {
                                         bool isSync = GUILayout.Toggle(meshSetting.isSync, meshSetting.meshName);
@@ -890,36 +925,6 @@ namespace VMCReplaceAvatar
                                     GUILayout.EndScrollView();
                                 }
 
-                                GUILayout.Space(10);
-
-                                using (new GUILayout.VerticalScope())
-                                {
-                                    GUILayout.Label("Floor Offset Sender");
-                                    using (new GUILayout.HorizontalScope())
-                                    {
-                                        GUILayout.Label("Address");
-                                        GUILayout.Label("Port");
-                                        GUILayout.Label(" ");
-                                    }
-                                    using (new GUILayout.HorizontalScope())
-                                    {
-                                        _address = GUILayout.TextField(_address);
-                                        _port = int.Parse(GUILayout.TextField(_port.ToString()));
-                                        if (GUILayout.Button("Apply"))
-                                        {
-                                            if (_address != _config.FloorOffsetSenderAddress || _port != _config.FloorOffsetPort)
-                                            {
-                                                _floorOffset.RemoveTask(_config.FloorOffsetPort);
-
-                                                _config.FloorOffsetSenderAddress = _address;
-                                                _config.FloorOffsetPort = _port;
-
-                                                _floorOffset.AddSendTask();
-
-                                            }
-                                        }
-                                    }
-                                }
                                 GUILayout.Space(10);
                                 _config.DisplayUIatStartup = GUILayout.Toggle(_config.DisplayUIatStartup, "Display UI at Startup");
                             }
@@ -936,8 +941,14 @@ namespace VMCReplaceAvatar
                         if (GUILayout.Button("Mouse Move", GUILayout.Width(120), GUILayout.Height(30)))
                             _disableVMCMouseMove = !_disableVMCMouseMove;
                         GUI.color = Color.white;
-                        */
                         GUILayout.Space(30);
+                        */
+                        if (_portUIEnable)
+                            GUI.color = _buttonToggleColor;
+                        if (GUILayout.Button("VMCProtocol", GUILayout.Width(120), GUILayout.Height(30)))
+                            _portUIEnable = !_portUIEnable;
+                        GUI.color = Color.white;
+
                         if (_lightUIEnable)
                             GUI.color = _buttonToggleColor;
                         if (GUILayout.Button("Light", GUILayout.Width(120), GUILayout.Height(30)))
