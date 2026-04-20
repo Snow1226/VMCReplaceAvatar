@@ -30,16 +30,16 @@ namespace VMCReplaceAvatar.LightManager
             left.transform.SetParent(this.transform);
             LeftSaberLight = left.AddComponent<Light>();
             LeftSaberLight.type = UnityEngine.LightType.Point;
-            LeftSaberLight.range = 1.5f;
-            LeftSaberLight.intensity = 2.0f;
+            LeftSaberLight.range = Config.SaberLightRange;
+            LeftSaberLight.intensity = Config.SaberLightIntensity;
             LeftSaberLight.shadows = LightShadows.Soft;
 
             var right = new GameObject("RightSaberLight");
             right.transform.SetParent(this.transform);
             RightSaberLight = right.AddComponent<Light>();
             RightSaberLight.type = UnityEngine.LightType.Point;
-            RightSaberLight.range = 1.5f;
-            RightSaberLight.intensity = 2.0f;
+            RightSaberLight.range = Config.SaberLightRange;
+            RightSaberLight.intensity = Config.SaberLightIntensity;
             RightSaberLight.shadows = LightShadows.Soft;
             Initialize();
         }
