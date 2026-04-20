@@ -12,6 +12,7 @@ namespace VMCReplaceAvatar
         [JsonProperty] public int FloorOffsetPort = 39740;
         [JsonProperty] public int LightReceivePort = 39840;
 
+        [JsonProperty] public bool EnableSaberLight = true;
         [JsonProperty] public float SaberLightRange = 1.5f;
         [JsonProperty] public float SaberLightIntensity = 2.0f;
 

@@ -55,12 +55,31 @@ namespace VMCReplaceAvatar.LightManager
 
         private void Update()
         {
-            LeftSaberLight.transform.localPosition = _saberPos[0];
-            LeftSaberLight.transform.localRotation = _saberRot[0];
-            LeftSaberLight.color = _saberColors[0];
-            RightSaberLight.transform.localPosition = _saberPos[1];
-            RightSaberLight.transform.localRotation = _saberRot[1];
-            RightSaberLight.color = _saberColors[1];
+            if (Config.EnableSaberLight)
+            {
+                LeftSaberLight.enabled = true;
+                LeftSaberLight.transform.localPosition = _saberPos[0];
+                LeftSaberLight.transform.localRotation = _saberRot[0];
+                LeftSaberLight.color = _saberColors[0];
+                RightSaberLight.enabled = true;
+                RightSaberLight.transform.localPosition = _saberPos[1];
+                RightSaberLight.transform.localRotation = _saberRot[1];
+                RightSaberLight.color = _saberColors[1];
+            }
+            else
+            {
+                LeftSaberLight.enabled = false;
+                RightSaberLight.enabled = false;
+            }
+        }
+
+        public void SetLightData()
+        {
+            LeftSaberLight.range = Config.SaberLightRange;
+            LeftSaberLight.intensity = Config.SaberLightIntensity;
+
+            RightSaberLight.range = Config.SaberLightRange;
+            RightSaberLight.intensity = Config.SaberLightIntensity;
         }
 
         public void Initialize()
@@ -101,6 +120,15 @@ namespace VMCReplaceAvatar.LightManager
             catch (Exception e)
             {
                 Debug.LogError($"Failed to initialize OscServer: {e.Message}");
+            }
+        }
+
+        public void OscServerFinalized()
+        {
+            if (_oscServer != null)
+            {
+                _oscServer.Dispose();
+                _oscServer = null;
             }
         }
     }

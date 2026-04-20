@@ -59,6 +59,7 @@ namespace VMCReplaceAvatar
         private FloorOffset _floorOffset;
         private string _address;
         private int _port;
+        private int _lightPort;
 
         private bool _displayUI;
 
@@ -68,6 +69,11 @@ namespace VMCReplaceAvatar
         private bool _loadedAvatarIsDebugMode = false;
 
         private bool _debugPose = false;
+
+        private Color _buttonToggleColor = new Color(0.2f, 0.2f, 0.4f);
+        
+        private bool _replaceAvatarUIEnable = true;
+        private bool _lightUIEnable = false;
 
         private void Awake()
         {
@@ -90,6 +96,7 @@ namespace VMCReplaceAvatar
             _floorOffset.Config = _config;
             _address = _config.FloorOffsetSenderAddress;
             _port = _config.FloorOffsetPort;
+            _lightPort = _config.LightReceivePort;
 
             _displayUI = _config.DisplayUIatStartup;
 
@@ -695,184 +702,258 @@ namespace VMCReplaceAvatar
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.FlexibleSpace();
-                        using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(600)))
+
+                        if (_lightUIEnable)
                         {
-                            _config.avatarSelfScaling = GUILayout.Toggle(_config.avatarSelfScaling, "Avatar Self Scaling");
-
-                            if (GUILayout.Button("\nAvatar Change\n"))
+                            using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(240)))
                             {
-                                LoadAvatar();
-                            }
-
-                            /*
-                            using(new GUILayout.HorizontalScope())
-                            {
-                                GUILayout.FlexibleSpace();
-                                _debugLoad = GUILayout.Toggle(_debugLoad, "Debug Mode");
-                            }
-                            */
-
-                            GUILayout.Space(10);
-
-                            var floor = GUILayout.Toggle(_floorDispay, "Display Dummy Floor");
-                            if (floor != _floorDispay)
-                            {
-                                _floorDispay = floor;
-                                _floorObject.SetActive(_floorDispay);
-                            }
-
-                            GUILayout.Label($"Height Adjust Offset : {_vrmArmature.transform.localPosition.y.ToString("0.###")}");
-
-                            float offset = _vrmArmature.transform.localPosition.y;
-
-                            using (new GUILayout.HorizontalScope())
-                            {
-                                if (GUILayout.Button("<<"))
-                                    offset = offset - 0.01f;
-                                if (GUILayout.Button("<"))
-                                    offset = offset - 0.001f;
-
-                                if (GUILayout.Button(">"))
-                                    offset = offset + 0.001f;
-                                if (GUILayout.Button(">>"))
-                                    offset = offset + 0.01f;
-                            }
-                            offset = GUILayout.HorizontalSlider(offset, -0.5f, 0.5f);
-
-                            offset = Mathf.Clamp(offset, -0.5f, 0.5f);
-                            if (offset != _vrmArmature.transform.localPosition.y)
-                                _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, offset, _vrmArmature.transform.localPosition.z);
-                            if (_avatarModel != null)
-                            {
-                                GUILayout.Space(5);
-                                using (new GUILayout.VerticalScope(GUI.skin.box))
-                                {
-                                    var meshes = _avatarModel.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-
-                                    using (new GUILayout.HorizontalScope())
-                                    {
-                                        GUILayout.Label("Select footwear");
-                                        if (GUILayout.Button("Adjust"))
-                                        {
-                                            var offsetValue = GetFloorHeight(meshes[_selectedSkinnedMeshToggle].gameObject);
-                                            offsetValue = Mathf.Clamp(offsetValue, -0.5f, 0.5f);
-
-                                            Debug.Log($"Selected Mesh : {meshes[_selectedSkinnedMeshToggle].gameObject.name} / Offset Value : {offsetValue}");
-                                            _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -offsetValue, _vrmArmature.transform.localPosition.z);
-                                        }
-                                    }
-                                    _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition, GUILayout.Height(120));
-                                    var toggleCount = 0;
-                                    foreach (var mesh in meshes)
-                                    {
-                                        if (GUILayout.Toggle(_selectedSkinnedMeshToggle == toggleCount, mesh.name))
-                                            _selectedSkinnedMeshToggle = toggleCount;
-                                        toggleCount++;
-                                    }
-                                    GUILayout.EndScrollView();
-                                }
-                            }
-                            if (_avatarFileName != null)
-                                _config.avatarFloorOffsets.Find(x => x.avatarName == _avatarFileName).offset = offset;
-
-                            GUILayout.Space(10);
-
-                            using (new GUILayout.VerticalScope(GUI.skin.box))
-                            {
-                                GUILayout.Label("BlendShape Sync Mesh");
-
-                                _currentAvatarMeshSetting.ignoreSyncInitialValue = GUILayout.Toggle(_currentAvatarMeshSetting.ignoreSyncInitialValue, "Ignore Sync if initial Value");
+                                _config.EnableSaberLight = GUILayout.Toggle(_config.EnableSaberLight, "Use SaberLight");
 
                                 GUILayout.Space(10);
 
-                                _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 120 : 240));
-                                foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
-                                {
-                                    bool isSync = GUILayout.Toggle(meshSetting.isSync, meshSetting.meshName);
-                                    if (isSync != meshSetting.isSync)
-                                    {
-                                        meshSetting.isSync = isSync;
-                                        SaveConfig();
-                                    }
-                                }
-                                GUILayout.EndScrollView();
-                            }
+                                GUILayout.Label($"SaberLight Range : {_config.SaberLightRange.ToString("0.##")}");
 
-                            GUILayout.Space(10);
+                                float lightRange = _config.SaberLightRange;
 
-                            using (new GUILayout.VerticalScope())
-                            {
-                                GUILayout.Label("Floor Offset Sender");
                                 using (new GUILayout.HorizontalScope())
                                 {
-                                    GUILayout.Label("Address");
-                                    GUILayout.Label("Port");
-                                    GUILayout.Label(" ");
+                                    if (GUILayout.Button("<<"))
+                                        lightRange = lightRange - 0.1f;
+                                    if (GUILayout.Button("<"))
+                                        lightRange = lightRange - 0.01f;
+
+                                    if (GUILayout.Button(">"))
+                                        lightRange = lightRange + 0.01f;
+                                    if (GUILayout.Button(">>"))
+                                        lightRange = lightRange + 0.1f;
                                 }
+                                lightRange = GUILayout.HorizontalSlider(lightRange, 0.01f, 20f);
+
+                                lightRange = Mathf.Clamp(lightRange, 0.01f, 20f);
+                                if (lightRange != _config.SaberLightRange)
+                                {
+                                    _config.SaberLightRange = lightRange;
+                                    _lightManager.SetLightData();
+                                }
+
+                                GUILayout.Space(10);
+
+                                GUILayout.Label($"SaberLight Intensity : {_config.SaberLightIntensity.ToString("0.##")}");
+
+                                float lightIntensity = _config.SaberLightIntensity;
+
                                 using (new GUILayout.HorizontalScope())
                                 {
-                                    _address = GUILayout.TextField(_address);
-                                    _port = int.Parse(GUILayout.TextField(_port.ToString()));
+                                    if (GUILayout.Button("<<"))
+                                        lightIntensity = lightIntensity - 0.1f;
+                                    if (GUILayout.Button("<"))
+                                        lightIntensity = lightIntensity - 0.01f;
+
+                                    if (GUILayout.Button(">"))
+                                        lightIntensity = lightIntensity + 0.01f;
+                                    if (GUILayout.Button(">>"))
+                                        lightIntensity = lightIntensity + 0.1f;
+                                }
+                                lightIntensity = GUILayout.HorizontalSlider(lightIntensity, 0.01f, 20f);
+
+                                lightIntensity = Mathf.Clamp(lightIntensity, 0.01f, 20f);
+                                if (lightIntensity != _config.SaberLightIntensity)
+                                {
+                                    _config.SaberLightIntensity = lightIntensity;
+                                    _lightManager.SetLightData();
+                                }
+
+                                GUILayout.Space(10);
+
+                                GUILayout.Label("Light Receiver Port");
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    _lightPort = int.Parse(GUILayout.TextField(_lightPort.ToString()));
                                     if (GUILayout.Button("Apply"))
                                     {
-                                        if (_address != _config.FloorOffsetSenderAddress || _port != _config.FloorOffsetPort)
+                                        if (_lightPort != _config.LightReceivePort)
                                         {
-                                            _floorOffset.RemoveTask(_config.FloorOffsetPort);
+                                            _lightManager.OscServerFinalized();
 
-                                            _config.FloorOffsetSenderAddress = _address;
-                                            _config.FloorOffsetPort = _port;
+                                            _config.LightReceivePort = _lightPort;
 
-                                            _floorOffset.AddSendTask();
-
+                                            _lightManager.Initialize();
                                         }
                                     }
                                 }
                             }
-                            GUILayout.Space(10);
-                            using (new GUILayout.HorizontalScope())
+
+                        }
+
+                        if (_replaceAvatarUIEnable)
+                        {
+                            using (new GUILayout.VerticalScope(GUI.skin.box, GUILayout.Width(240), GUILayout.Height(600)))
                             {
-                                _config.DisplayUIatStartup = GUILayout.Toggle(_config.DisplayUIatStartup, "Display UI at Startup");
-                                if (GUILayout.Button("x", GUILayout.Width(60)))
+                                _config.avatarSelfScaling = GUILayout.Toggle(_config.avatarSelfScaling, "Avatar Self Scaling");
+
+                                if (GUILayout.Button("\nAvatar Change\n"))
                                 {
-                                    _displayUI = false;
+                                    LoadAvatar();
                                 }
+
+                                /*
+                                using(new GUILayout.HorizontalScope())
+                                {
+                                    GUILayout.FlexibleSpace();
+                                    _debugLoad = GUILayout.Toggle(_debugLoad, "Debug Mode");
+                                }
+                                */
+
+                                GUILayout.Space(10);
+
+                                var floor = GUILayout.Toggle(_floorDispay, "Display Dummy Floor");
+                                if (floor != _floorDispay)
+                                {
+                                    _floorDispay = floor;
+                                    _floorObject.SetActive(_floorDispay);
+                                }
+
+                                GUILayout.Label($"Height Adjust Offset : {_vrmArmature.transform.localPosition.y.ToString("0.###")}");
+
+                                float offset = _vrmArmature.transform.localPosition.y;
+
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    if (GUILayout.Button("<<"))
+                                        offset = offset - 0.01f;
+                                    if (GUILayout.Button("<"))
+                                        offset = offset - 0.001f;
+
+                                    if (GUILayout.Button(">"))
+                                        offset = offset + 0.001f;
+                                    if (GUILayout.Button(">>"))
+                                        offset = offset + 0.01f;
+                                }
+                                offset = GUILayout.HorizontalSlider(offset, -0.5f, 0.5f);
+
+                                offset = Mathf.Clamp(offset, -0.5f, 0.5f);
+                                if (offset != _vrmArmature.transform.localPosition.y)
+                                    _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, offset, _vrmArmature.transform.localPosition.z);
+                                if (_avatarModel != null)
+                                {
+                                    GUILayout.Space(5);
+                                    using (new GUILayout.VerticalScope(GUI.skin.box))
+                                    {
+                                        var meshes = _avatarModel.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+
+                                        using (new GUILayout.HorizontalScope())
+                                        {
+                                            GUILayout.Label("Select footwear");
+                                            if (GUILayout.Button("Adjust"))
+                                            {
+                                                var offsetValue = GetFloorHeight(meshes[_selectedSkinnedMeshToggle].gameObject);
+                                                offsetValue = Mathf.Clamp(offsetValue, -0.5f, 0.5f);
+
+                                                Debug.Log($"Selected Mesh : {meshes[_selectedSkinnedMeshToggle].gameObject.name} / Offset Value : {offsetValue}");
+                                                _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -offsetValue, _vrmArmature.transform.localPosition.z);
+                                            }
+                                        }
+                                        _skinnedMeshScrollPosition = GUILayout.BeginScrollView(_skinnedMeshScrollPosition, GUILayout.Height(120));
+                                        var toggleCount = 0;
+                                        foreach (var mesh in meshes)
+                                        {
+                                            if (GUILayout.Toggle(_selectedSkinnedMeshToggle == toggleCount, mesh.name))
+                                                _selectedSkinnedMeshToggle = toggleCount;
+                                            toggleCount++;
+                                        }
+                                        GUILayout.EndScrollView();
+                                    }
+                                }
+                                if (_avatarFileName != null)
+                                    _config.avatarFloorOffsets.Find(x => x.avatarName == _avatarFileName).offset = offset;
+
+                                GUILayout.Space(10);
+
+                                using (new GUILayout.VerticalScope(GUI.skin.box))
+                                {
+                                    GUILayout.Label("BlendShape Sync Mesh");
+
+                                    _currentAvatarMeshSetting.ignoreSyncInitialValue = GUILayout.Toggle(_currentAvatarMeshSetting.ignoreSyncInitialValue, "Ignore Sync if initial Value");
+
+                                    GUILayout.Space(10);
+
+                                    _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(_avatarModel != null ? 120 : 240));
+                                    foreach (var meshSetting in _currentAvatarMeshSetting.meshSettings)
+                                    {
+                                        bool isSync = GUILayout.Toggle(meshSetting.isSync, meshSetting.meshName);
+                                        if (isSync != meshSetting.isSync)
+                                        {
+                                            meshSetting.isSync = isSync;
+                                            SaveConfig();
+                                        }
+                                    }
+                                    GUILayout.EndScrollView();
+                                }
+
+                                GUILayout.Space(10);
+
+                                using (new GUILayout.VerticalScope())
+                                {
+                                    GUILayout.Label("Floor Offset Sender");
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        GUILayout.Label("Address");
+                                        GUILayout.Label("Port");
+                                        GUILayout.Label(" ");
+                                    }
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        _address = GUILayout.TextField(_address);
+                                        _port = int.Parse(GUILayout.TextField(_port.ToString()));
+                                        if (GUILayout.Button("Apply"))
+                                        {
+                                            if (_address != _config.FloorOffsetSenderAddress || _port != _config.FloorOffsetPort)
+                                            {
+                                                _floorOffset.RemoveTask(_config.FloorOffsetPort);
+
+                                                _config.FloorOffsetSenderAddress = _address;
+                                                _config.FloorOffsetPort = _port;
+
+                                                _floorOffset.AddSendTask();
+
+                                            }
+                                        }
+                                    }
+                                }
+                                GUILayout.Space(10);
+                                _config.DisplayUIatStartup = GUILayout.Toggle(_config.DisplayUIatStartup, "Display UI at Startup");
                             }
+
                         }
                     }
                     GUILayout.FlexibleSpace();
                     using (new GUILayout.HorizontalScope(GUILayout.Height(40)))
                     {
                         GUILayout.FlexibleSpace();
+                        /*
                         if (_disableVMCMouseMove)
-                        {
-                            if (GUILayout.Button("✓ Mouse Move  ", GUILayout.Width(120), GUILayout.Height(30)))
-                            {
-                                _disableVMCMouseMove = false;
-                            }
-
-                        }
-                        else
-                        {
-                            if (GUILayout.Button("　 Mouse Move  ", GUILayout.Width(120), GUILayout.Height(30)))
-                            {
-                                _disableVMCMouseMove = true;
-                            }
-                        }
+                            GUI.color = _buttonToggleColor;
+                        if (GUILayout.Button("Mouse Move", GUILayout.Width(120), GUILayout.Height(30)))
+                            _disableVMCMouseMove = !_disableVMCMouseMove;
+                        GUI.color = Color.white;
+                        */
                         GUILayout.Space(30);
+                        if (_lightUIEnable)
+                            GUI.color = _buttonToggleColor;
                         if (GUILayout.Button("Light", GUILayout.Width(120), GUILayout.Height(30)))
-                        {
+                            _lightUIEnable = !_lightUIEnable;
+                        GUI.color = Color.white;
 
-                        }
+                        if (_replaceAvatarUIEnable)
+                            GUI.color = _buttonToggleColor;
                         if (GUILayout.Button("ReplaceAvatar", GUILayout.Width(120), GUILayout.Height(30)))
-                        {
+                            _replaceAvatarUIEnable = !_replaceAvatarUIEnable;
+                        GUI.color = Color.white;
 
-                        }
                         //GUILayout.FlexibleSpace();
                         GUILayout.Space(60);
                         if (GUILayout.Button("x", GUILayout.Width(30), GUILayout.Height(30)))
-                        {
-
-                        }
+                            _displayUI = false;
                     }
                 }
                 GUILayout.EndArea();
