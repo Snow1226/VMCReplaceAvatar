@@ -97,9 +97,14 @@
     <Compile Include="InitialShapes.cs" />
     <Compile Include="InitialTransform.cs" />
     <Compile Include="FloorOffset.cs" />
+    <Compile Include="LightManager\LightManager.cs" />
     <Compile Include="Osc\OscClient.cs" />
+    <Compile Include="Osc\OscDataHandle.cs" />
     <Compile Include="Osc\OscDataType.cs" />
+    <Compile Include="Osc\OscMessageDispatcher.cs" />
     <Compile Include="Osc\OscPacketEncorder.cs" />
+    <Compile Include="Osc\OscPacketParser.cs" />
+    <Compile Include="Osc\OscServer.cs" />
     <Compile Include="PositionConstraintScaleSync.cs" />
     <Compile Include="ReplaceAvatar.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
