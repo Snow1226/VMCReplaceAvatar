@@ -15,7 +15,7 @@ namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.2.0",
+    Version: "0.2.1",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -75,6 +75,9 @@ namespace VMCReplaceAvatar
         private bool _replaceAvatarUIEnable = true;
         private bool _lightUIEnable = false;
         private bool _portUIEnable = false;
+
+        private string _fpsText;
+        private float _deltaTime = 0.0f;
 
         private void Awake()
         {
@@ -323,7 +326,7 @@ namespace VMCReplaceAvatar
             _vrmArmature = vrmAnimator.GetBoneTransform(HumanBodyBones.Hips).parent.gameObject;
 
             _vrmPoseRoot = new GameObject("VRM Pose Root");
-            _vrmPoseRoot.transform.position = new Vector3(0.5f, 0, 0);
+            _vrmPoseRoot.transform.position = Vector3.zero;
             _vrmPoseRoot.transform.rotation = Quaternion.identity;  
 
             _vrmPose = InstantiateArmature(currentModel, "VRM Initial Pose");
@@ -388,34 +391,42 @@ namespace VMCReplaceAvatar
                 if(renderer != null)
                     renderer.enabled = false;
             }
-            /*
-            var comps = retObj.GetComponentsInChildren<Behaviour>(true);
-            var exclusionList = new string[] { "Animator" };
-            foreach (var comp in comps)
+
+            if (!_debugLoad)
             {
-                try
+                var comps = retObj.GetComponentsInChildren<Behaviour>(true);
+                var exclusionList = new string[] { "Animator" };
+                foreach (var comp in comps)
                 {
-                    if (comp != null)
+                    try
                     {
-                        foreach (string d in exclusionList)
+                        if (comp != null)
                         {
-                            if (!comp.GetType().Name.ToLower().Contains(d.ToLower()))
-                                GameObject.Destroy(comp);
+                            foreach (string d in exclusionList)
+                            {
+                                if (!comp.GetType().Name.ToLower().Contains(d.ToLower()))
+                                    GameObject.Destroy(comp);
+                            }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
+                    }
                 }
             }
-            */
             return retObj;
         }
 
 
         private void Update()
         {
+            // FPSを計算
+            _deltaTime += (Time.unscaledDeltaTime - _deltaTime) * 0.1f;
+            float msec = _deltaTime * 1000.0f;
+            float fps = 1.0f / _deltaTime;
+            _fpsText = string.Format("{0:0.} FPS ({1:0.0} ms)", fps, msec);
+
             if (Input.GetKeyDown(KeyCode.S))
             {
                 _config.avatarSelfScaling = !_config.avatarSelfScaling;
@@ -616,27 +627,17 @@ namespace VMCReplaceAvatar
                                         poseBone.localPosition = initialTrans.initialPosition;
                                         poseBone.localRotation = initialTrans.initialRotation;
 
-                                        if (!_debugLoad)
-                                        {
-                                            var rot = avatarBone.gameObject.AddComponent<BoneConstraint>();
-                                            rot.sourceTransform = initialTrans;
-                                            rot.worldRotationAtRest = avatarBone.rotation;
-                                            _loadedAvatarIsDebugMode = false;
-                                        }
-                                        else
-                                        {
-                                            var rot = avatarBone.gameObject.AddComponent<RotationConstraint>();
-                                            rot.weight = 1;
-                                            rot.AddSource(new ConstraintSource() { sourceTransform = poseBone, weight = 1 });
+                                        var rot = avatarBone.gameObject.AddComponent<RotationConstraint>();
+                                        rot.weight = 1;
+                                        rot.AddSource(new ConstraintSource() { sourceTransform = poseBone, weight = 1 });
 
-                                            rot.rotationAtRest = avatarBone.localEulerAngles;
-                                            rot.rotationOffset = (Quaternion.Inverse(poseBone.rotation) * avatarBone.rotation).eulerAngles;
-                                            rot.locked = true;
-                                            rot.constraintActive = true;
-                                            rot.enabled = true;
+                                        rot.rotationAtRest = avatarBone.localEulerAngles;
+                                        rot.rotationOffset = (Quaternion.Inverse(poseBone.rotation) * avatarBone.rotation).eulerAngles;
+                                        rot.locked = true;
+                                        rot.constraintActive = true;
+                                        rot.enabled = true;
 
-                                            _loadedAvatarIsDebugMode = true;
-                                        }
+                                        _loadedAvatarIsDebugMode = true;
                                     }
 
                                     if ((HumanBodyBones)bone == HumanBodyBones.Hips)
@@ -934,6 +935,10 @@ namespace VMCReplaceAvatar
                     GUILayout.FlexibleSpace();
                     using (new GUILayout.HorizontalScope(GUILayout.Height(40)))
                     {
+                        GUI.color = Color.black;
+                        GUI.Label(new Rect(10, Screen.height - 20, 120, 20), _fpsText);
+                        GUI.color = Color.white;
+
                         GUILayout.FlexibleSpace();
                         /*
                         if (_disableVMCMouseMove)
