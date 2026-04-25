@@ -15,7 +15,7 @@ namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.2.1",
+    Version: "0.2.2",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -264,7 +264,7 @@ namespace VMCReplaceAvatar
                 }
             }
 
-            if(_avatarModel != null && _vrmPose != null && !_loadedAvatarIsDebugMode)
+            if(_avatarModel != null && _vrmPose != null)
             {
                 Animator avatarAnimator = _avatarModel.GetComponent<Animator>();
                 Animator poseAnimator = _vrmPose.GetComponent<Animator>();
