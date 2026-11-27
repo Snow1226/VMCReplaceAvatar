@@ -402,7 +402,7 @@ namespace VMCReplaceAvatar
             if (!_debugLoad)
             {
                 var comps = retObj.GetComponentsInChildren<Behaviour>(true);
-                var exclusionList = new string[] { "Animator", "Vrm10Instance", "Humanoid" };
+                var exclusionList = new string[] { "Animator","Constraint", "Humanoid" };
                 foreach (var comp in comps)
                 {
                     try
