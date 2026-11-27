@@ -8,14 +8,14 @@ using UnityEngine;
 using UnityEngine.Animations;
 using VMC;
 using VMCMod;
-using VRM;
+using UniVRM10;
 using VMCReplaceAvatar.LightManager;
 
 namespace VMCReplaceAvatar
 {
     [VMCPlugin(
     Name: "VMC Replace Avatar",
-    Version: "0.2.2",
+    Version: "0.3.0",
     Author: "snow",
     Description: "VRMを別のアバターモデルで置き換えるMod",
     AuthorURL: "https://twitter.com/snow_mil",
@@ -79,8 +79,12 @@ namespace VMCReplaceAvatar
         private string _fpsText;
         private float _deltaTime = 0.0f;
 
+        public Logger ModLogger;
+
         private void Awake()
         {
+            ModLogger = new Logger();
+
             LoadConfig();
             VMCEvents.OnModelLoaded += OnModelLoaded;
             VMCEvents.AfterApplyMotion += AfterApplyMotion;
@@ -105,6 +109,7 @@ namespace VMCReplaceAvatar
             _displayUI = _config.DisplayUIatStartup;
 
             _lightManager = new GameObject("LightManager").AddComponent<LightManager.LightManager>();
+            _lightManager.ParentClass = this;
             _lightManager.Config = _config;
             _lightManager.transform.localPosition = Vector3.zero;
             _lightManager.transform.localRotation = Quaternion.identity;
@@ -125,16 +130,16 @@ namespace VMCReplaceAvatar
         private void LoadBurstLibrary()
         {
             var burstLibraryPath = Path.Combine(Application.dataPath, "Plugins/x86_64/MagicaCloth2.burst.dll");
-            Debug.Log($"Burst Library Path : {burstLibraryPath}");
+            ModLogger.Log($"Burst Library Path : {burstLibraryPath}");
             if (File.Exists(burstLibraryPath))
             {
                 if (!Unity.Burst.BurstRuntime.LoadAdditionalLibrary(burstLibraryPath))
-                    Debug.LogWarning("MagicaCloth2.burst.dll load failed.");
+                    ModLogger.LogWarning("MagicaCloth2.burst.dll load failed.");
                 else
-                    Debug.LogWarning("MagicaCloth2.burst.dll loaded.");
+                    ModLogger.LogWarning("MagicaCloth2.burst.dll loaded.");
             }
             else
-                Debug.LogWarning("MagicaCloth2.burst.dll not found.");
+                ModLogger.LogWarning("MagicaCloth2.burst.dll not found.");
         }
 
         private void LoadConfig()
@@ -183,6 +188,7 @@ namespace VMCReplaceAvatar
                 if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                 {
                     BlendShapeSync sync = renderer.gameObject.AddComponent<BlendShapeSync>();
+                    sync.ParentClass = this;
                     sync.meshSetting = _currentAvatarMeshSetting;
                     sync.sourceRenderer = _vrmModel.GetComponentsInChildren<SkinnedMeshRenderer>(true).FirstOrDefault(x => x.gameObject.name == renderer.gameObject.name);
                 }
@@ -306,7 +312,7 @@ namespace VMCReplaceAvatar
 
         private void OnModelLoaded(GameObject currentModel)
         {
-            if(_avatarModel != null)
+            if (_avatarModel != null)
                 Destroy(_avatarModel);
 
             if(_vrmPose != null)
@@ -319,7 +325,8 @@ namespace VMCReplaceAvatar
                 _scaleSyncTarget = GameObject.Find("HandTrackerRoot");
 
             _vrmModel = currentModel;
-            _currentModelName = currentModel.GetComponent<VRMMeta>().Meta.Title;
+            var vrmInstance = currentModel.GetComponent<Vrm10Instance>();
+            _currentModelName = vrmInstance.Vrm.Meta.Name;
 
             //VRM初期ポーズを複製
             Animator vrmAnimator = _vrmModel.GetComponent<Animator>();
@@ -395,23 +402,22 @@ namespace VMCReplaceAvatar
             if (!_debugLoad)
             {
                 var comps = retObj.GetComponentsInChildren<Behaviour>(true);
-                var exclusionList = new string[] { "Animator" };
+                var exclusionList = new string[] { "Animator", "Vrm10Instance", "Humanoid" };
                 foreach (var comp in comps)
                 {
                     try
                     {
                         if (comp != null)
                         {
-                            foreach (string d in exclusionList)
-                            {
-                                if (!comp.GetType().Name.ToLower().Contains(d.ToLower()))
-                                    GameObject.Destroy(comp);
-                            }
+                            var typeName = comp.GetType().Name;
+                            var isExcluded = exclusionList.Any(d => typeName.IndexOf(d, StringComparison.OrdinalIgnoreCase) >= 0);
+                            if (!isExcluded)
+                                GameObject.Destroy(comp);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
+                        ModLogger.LogError($"Component Destroy Error : {comp.gameObject.name} - {comp.GetType().Name} / {ex.Message}");
                     }
                 }
             }
@@ -432,6 +438,7 @@ namespace VMCReplaceAvatar
                 _config.avatarSelfScaling = !_config.avatarSelfScaling;
                 SaveConfig();
             }
+            /*
             if (Input.GetKeyDown(KeyCode.F12))
             {
                 Renderer[] vrmRenderers = _vrmModel.GetComponentsInChildren<Renderer>(true);
@@ -445,6 +452,7 @@ namespace VMCReplaceAvatar
                     renderer.enabled = !renderer.enabled;
                 }
             }
+            */
             if(Input.GetKeyDown(KeyCode.F11))
             {
                 _debugPose = !_debugPose;
@@ -480,7 +488,7 @@ namespace VMCReplaceAvatar
                 string dllDirectory = Directory.GetParent(System.Reflection.Assembly.GetExecutingAssembly().Location).FullName;
 
                 AssetBundle asset = AssetBundle.LoadFromFile(avatarPath);
-                asset.GetAllAssetNames().ToList().ForEach(x => Debug.Log(x));
+                asset.GetAllAssetNames().ToList().ForEach(x => ModLogger.Log(x));
 
                 GameObject avatar = asset.LoadAsset<GameObject>(asset.GetAllAssetNames()[0]);
                 asset.Unload(false);
@@ -511,7 +519,7 @@ namespace VMCReplaceAvatar
                     var armature = _avatarModel.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.gameObject.AddComponent<PositionConstraintScaleSync>();
                     if (armature == null)
                     {
-                        Debug.LogError("Failed to get Armature in LoadAvatar.");
+                        ModLogger.LogError("Failed to get Armature in LoadAvatar.");
                         Destroy(_avatarModel);
                         return;
                     }
@@ -534,7 +542,7 @@ namespace VMCReplaceAvatar
                         if (renderer != null)
                             renderer.gameObject.AddComponent<InitialShapes>();
                         else
-                            Debug.LogError($"Renderer is not SkinnedMeshRenderer : {renderer.gameObject.name}");
+                            ModLogger.LogError($"Renderer is not SkinnedMeshRenderer : {renderer.gameObject.name}");
 
                         if (_currentAvatarMeshSetting.meshSettings.Find(x => x.meshName == renderer.gameObject.name)?.isSync == true)
                             SetBlendshapeSync();
@@ -566,7 +574,7 @@ namespace VMCReplaceAvatar
                         }
                         catch (Exception ex)
                         {
-                            Debug.LogError($"Floor Height Adjustment Error : {ex.Message}");
+                            ModLogger.LogError($"Floor Height Adjustment Error : {ex.Message}");
                             Destroy(_avatarModel);
                             return;
                         }
@@ -629,7 +637,7 @@ namespace VMCReplaceAvatar
 
                                         var rot = avatarBone.gameObject.AddComponent<RotationConstraint>();
                                         rot.weight = 1;
-                                        rot.AddSource(new ConstraintSource() { sourceTransform = poseBone, weight = 1 });
+                                        rot.AddSource(new UnityEngine.Animations.ConstraintSource() { sourceTransform = poseBone, weight = 1 });
 
                                         rot.rotationAtRest = avatarBone.localEulerAngles;
                                         rot.rotationOffset = (Quaternion.Inverse(poseBone.rotation) * avatarBone.rotation).eulerAngles;
@@ -652,7 +660,7 @@ namespace VMCReplaceAvatar
                                 }
                                 catch (Exception ex)
                                 {
-                                    Debug.LogError($"Bone Constraint Error : {bone} / {ex.Message}");
+                                    ModLogger.LogError($"Bone Constraint Error : {bone} / {ex.Message}");
                                 }
                             }
                         }
@@ -683,13 +691,13 @@ namespace VMCReplaceAvatar
                             floorHeight = min;
                     }
                     else
-                        Debug.LogWarning($"GetFloorHeight : No vertices found in {renderer.gameObject.name}");
+                        ModLogger.LogWarning($"GetFloorHeight : No vertices found in {renderer.gameObject.name}");
                 }
 
             }
             catch (Exception e)
             {
-                Debug.LogError($"GetFloorHeight Error : {e.Message}");
+                ModLogger.LogError($"GetFloorHeight Error : {e.Message}");
             }
             return floorHeight;
         }
@@ -885,7 +893,7 @@ namespace VMCReplaceAvatar
                                                 var offsetValue = GetFloorHeight(meshes[_selectedSkinnedMeshToggle].gameObject);
                                                 offsetValue = Mathf.Clamp(offsetValue, -0.5f, 0.5f);
 
-                                                Debug.Log($"Selected Mesh : {meshes[_selectedSkinnedMeshToggle].gameObject.name} / Offset Value : {offsetValue}");
+                                                ModLogger.Log($"Selected Mesh : {meshes[_selectedSkinnedMeshToggle].gameObject.name} / Offset Value : {offsetValue}");
                                                 _vrmArmature.transform.localPosition = new Vector3(_vrmArmature.transform.localPosition.x, -offsetValue, _vrmArmature.transform.localPosition.z);
                                             }
                                         }

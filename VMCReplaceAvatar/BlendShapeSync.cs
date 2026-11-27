@@ -7,13 +7,19 @@ namespace VMCReplaceAvatar
     {
         public Renderer sourceRenderer;
         public VRMAvatarMeshSetting meshSetting;
+        public ReplaceAvatar ParentClass;
 
         private InitialShapes _initialShapes;
         private void Start()
         {
             _initialShapes = GetComponent<InitialShapes>();
-            if ( _initialShapes == null )
-                Debug.LogError("InitialShapes component not found on the GameObject.");
+            if ( _initialShapes == null)
+            {
+                if(ParentClass != null)
+                {
+                    ParentClass.ModLogger.LogError("InitialShapes component not found on the GameObject.");
+                }
+            }
         }
 
         private void Update()

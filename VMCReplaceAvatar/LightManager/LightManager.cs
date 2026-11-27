@@ -13,6 +13,7 @@ namespace VMCReplaceAvatar.LightManager
     {
         private OscServer _oscServer;
         public Config Config;
+        public ReplaceAvatar ParentClass;
 
         private Light _directionalLight;
         public Light LeftSaberLight;
@@ -119,7 +120,8 @@ namespace VMCReplaceAvatar.LightManager
             }
             catch (Exception e)
             {
-                Debug.LogError($"Failed to initialize OscServer: {e.Message}");
+                if(ParentClass != null)
+                    ParentClass.ModLogger.LogError($"Failed to initialize OscServer: {e.Message}");
             }
         }
 

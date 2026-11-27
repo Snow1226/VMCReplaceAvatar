@@ -89,6 +89,9 @@
       <HintPath>$(VMCDirectory)\VirtualMotionCapture_Data\Managed\VRM.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="VRM10">
+      <HintPath>..\..\..\..\Programs\VirtualMotionCapture0.61b2\VirtualMotionCapture_Data\Managed\VRM10.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlendShapeData.cs" />
@@ -98,6 +101,7 @@
     <Compile Include="InitialTransform.cs" />
     <Compile Include="FloorOffset.cs" />
     <Compile Include="LightManager\LightManager.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Osc\OscClient.cs" />
     <Compile Include="Osc\OscDataHandle.cs" />
     <Compile Include="Osc\OscDataType.cs" />
